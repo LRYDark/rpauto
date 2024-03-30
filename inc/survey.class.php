@@ -173,22 +173,6 @@ class PluginRpautoSurvey extends CommonDBTM {
          'datatype'           => 'bool'
       ];
 
-      $tab[] = [
-         'id'                 => '30',
-         'table'              => $this->getTable(),
-         'field'              => 'id',
-         'name'               => __('ID'),
-         'datatype'           => 'number'
-      ];
-
-      $tab[] = [
-         'id'                 => '86',
-         'table'              => $this->getTable(),
-         'field'              => 'is_recursive',
-         'name'               => __('Child entities'),
-         'datatype'           => 'bool'
-      ];
-
       return $tab;
    }
 
@@ -225,6 +209,7 @@ class PluginRpautoSurvey extends CommonDBTM {
                              'display' => false,
                           ]);
       echo "</td></tr>";
+
       echo "<tr class='tab_bg_1'>";
       echo "<td>" . __('Entity') . "</td>";
       echo "<td>";
@@ -247,6 +232,33 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "<td>";
       Dropdown::showYesNo("is_active", $this->fields["is_active"]);
       echo "</td><td colspan='2'></td></tr>";
+
+      echo "<tr class='tab_bg_1'>";
+      echo "<td>" . __('Affichage des tâches privés') . "</td>";
+      echo "<td>";
+      Dropdown::showYesNo("tasks_private", $this->fields["tasks_private"]);
+      echo "</td>";
+      echo "<td>" . __('Affichager les images des tâches') . "</td>";
+      echo "<td>";
+      Dropdown::showYesNo("tasks_img", $this->fields["tasks_img"]);
+      echo "</td>";
+      echo "<td colspan='2'></td></tr>";
+
+      echo "<tr class='tab_bg_1'>";
+      echo "<td>" . __('Affichage des suivis privés') . "</td>";
+      echo "<td>";
+      Dropdown::showYesNo("suivis_private", $this->fields["suivis_private"]);
+      echo "</td>";
+      echo "<td>" . __('Affichager les images des suivis') . "</td>";
+      echo "<td>";
+      Dropdown::showYesNo("suivis_img", $this->fields["suivis_img"]);
+      echo "</td>";
+      echo "<td colspan='2'></td></tr>";
+
+      echo "<td>" . __('Email') . "</td>";
+      echo "<td>";
+      echo Html::input('mail', ['value' => $this->fields['mail'], 'size' => 40]);
+      echo "</td>";  
 
       $this->showFormButtons($options);
       Html::closeForm();

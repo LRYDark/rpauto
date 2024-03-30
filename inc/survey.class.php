@@ -260,7 +260,7 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo Html::input('mail', ['value' => $this->fields['mail'], 'size' => 40]);
       echo "</td>";  
 
-      $this->showFormButtons($options);
+      $test = $this->showFormButtons($options);
       Html::closeForm();
 
       return true;
@@ -298,6 +298,8 @@ class PluginRpautoSurvey extends CommonDBTM {
     * @return the modified $input array
     **/
    function prepareInputForUpdate($input) {
+
+      Session::addMessageAfterRedirect('test 2 :'.$input['id'], false, INFO);
 
       //active external survey for entity
       if ($input['is_active'] == 1) {

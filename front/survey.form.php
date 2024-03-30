@@ -40,7 +40,12 @@ $survey = new PluginRpautoSurvey();
 
 if (isset($_POST["add"])) {
    $survey->check(-1, CREATE, $_POST);
-   $survey->add($_POST);
+   $id = $survey->add($_POST);
+
+   $mail = $_POST["mail"];
+   $query= "INSERT INTO `glpi_plugin_rpauto_surveysuser` (`survey_id`, `users_id`, `type`, `use_notification`, `alternative_email`) VALUES ($id, 0, 1, 0, '$mail');";
+   $survey_id = $DB->query($query);
+
    Html::back();
 
 } else if (isset($_POST["purge"])) {

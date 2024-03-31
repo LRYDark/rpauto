@@ -62,7 +62,7 @@ function plugin_rpauto_uninstall() {
    include_once(Plugin::getPhpDir('rpauto')."/inc/profile.class.php");
    include_once(Plugin::getPhpDir('rpauto')."/inc/menu.class.php");
 
-   $DB->query("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser;");
+   $DB->query("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser, glpi_plugin_rpauto_send;");
 
    /*
    $tables = [

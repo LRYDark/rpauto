@@ -121,10 +121,11 @@ class PluginRpautoReminder extends CommonDBTM {
       date_default_timezone_set('Europe/Paris');
          $CurrentDate = date("Y-m-d H:i:s");
 
-         $query_surveyid = $DB->query("SELECT * FROM glpi_plugin_rpauto_surveys");
+         $query_surveyid = $DB->query("SELECT id FROM glpi_plugin_rpauto_surveys");
          //While 1 -------------------------------------------------------
          while ($data = $DB->fetchArray($query_surveyid)) {
             $surveyid = $data['id'];
+            $query_surveyid_data = $DB->query("SELECT * FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid");
 
             // Récupértion du mail pour envoyé le PDF
             $query_sel_mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
@@ -239,7 +240,7 @@ $pdf->Ln(0);
 // --------- DEMANDE
 
 // --------- DESCRIPTION
-if(!empty($_POST['CHECK_DESCRIPTION_TICKET']) == 'check'){
+if($query_surveyid_data->route_desc == 1){
 $pdf->Ln(5);
 $pdf->Cell(190,5,utf8_decode('Description du problème'),1,0,'C',true);
 $pdf->Ln();
@@ -289,7 +290,7 @@ $is_private = "AND is_private = 0";
 }else{
 $is_private = "";
 }
-// --------- TACHES
+/*// --------- TACHES
 if($FORM == 'FormRapport' || $FORM == 'FormRapportHotline'){
 $querytask = $DB->query("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid");
 $sumtask = 0;
@@ -432,31 +433,32 @@ if ($sumsuivi > 0){
         }         
     } 
 }
-// --------- SUIVI
+// --------- SUIVI*/
+
+
+
+
+
+
+
 
 // --------- TEMPS D'INTERVENTION
     $pdf->Ln(5);
-if (isset($_POST['rapporttime'])){
     $pdf->Cell(80,5,utf8_decode("Temps d'intervention total"),1,0,'L',true);
     $pdf->Cell(110,5,utf8_decode(floor($sumtask / 3600) .  str_replace(":", "h",gmdate(":i", $sumtask % 3600))),1,0,'L');
     $pdf->Ln(7);
-}
-}
 // --------- TEMPS D'INTERVENTION
 
 // --------- TEMPS DE TRAJET
-if ($plugin->isActivated('rt')) {
-if ($FORM == "FormRapportHotline" && $config->fields['time_hotl'] == 1 || $FORM == 'FormRapport' && $config->fields['time'] == 1){
-    $sumroutetime = 0;
-    $timeroute = $DB->query("SELECT routetime FROM `glpi_plugin_rt_tickets` WHERE tickets_id = $ticketid");
-        while ($data = $DB->fetchArray($timeroute)) {
-            $sumroutetime += $data['routetime'];
-        }
-
-        $pdf->Cell(80,5,utf8_decode('Temps de trajet total'),1,0,'L',true);
-        $pdf->Cell(110,5,utf8_decode(str_replace(":", "h", gmdate("H:i",$sumroutetime*60))),1,0,'L');
-        $pdf->Ln(7);
-}
+if (Plugin::isPluginActive('rt') && $query_surveyid_data->route_time == 1) {
+      $sumroutetime = 0;
+      $timeroute = $DB->query("SELECT routetime FROM `glpi_plugin_rt_tickets` WHERE tickets_id = $ticketid");
+         while ($data = $DB->fetchArray($timeroute)) {
+               $sumroutetime += $data['routetime'];
+         }
+         $pdf->Cell(80,5,utf8_decode('Temps de trajet total'),1,0,'L',true);
+         $pdf->Cell(110,5,utf8_decode(str_replace(":", "h", gmdate("H:i",$sumroutetime*60))),1,0,'L');
+         $pdf->Ln(7);
 }
 // --------- TEMPS DE TRAJET
 

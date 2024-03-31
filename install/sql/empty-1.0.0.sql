@@ -13,6 +13,8 @@ CREATE TABLE `glpi_plugin_rpauto_surveys` (
   `tasks_img` tinyint NOT NULL default '0',
   `suivis_private` tinyint NOT NULL default '0',
   `suivis_img` tinyint NOT NULL default '0',
+  `ticket_desc` tinyint NOT NULL default '0',
+  `route_time` tinyint NOT NULL default '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 

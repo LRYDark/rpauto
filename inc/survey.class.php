@@ -217,6 +217,19 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "</td>";
       echo "<td colspan='2'></td></tr>";
 
+      echo "<tr class='tab_bg_1'>";
+      echo "<td>" . __('Affichage de la déscription du ticket') . "</td>";
+      echo "<td>";
+      Dropdown::showYesNo("ticket_desc", $this->fields["ticket_desc"]);
+      echo "</td>";
+      if (Plugin::isPluginActive('rt')) {
+         echo "<td>" . __('Affichager du temps de trajet') . "</td>";
+         echo "<td>";
+         Dropdown::showYesNo("route_time", $this->fields["route_time"]);
+         echo "</td>";
+      }
+      echo "<td colspan='2'></td></tr>";
+
 
       echo "<td>" . __('Email') . "</td>";
       echo "<td>";

@@ -38,6 +38,13 @@ define('PLUGIN_RPAUTO_MIN_GLPI', '10.0');
 // Maximum GLPI version, exclusive
 define('PLUGIN_RPAUTO_MAX_GLPI', '11.0');
 
+if (!defined("PLUGIN_RPAUTO_DIR")) {
+   define("PLUGIN_RPAUTO_DIR", Plugin::getPhpDir("rpauto"));
+   define("PLUGIN_RPAUTO_NOTFULL_DIR", Plugin::getPhpDir("rpauto",false));
+   define("PLUGIN_RPAUTO_WEBDIR", Plugin::getWebDir("rpauto"));
+   define("PLUGIN_RPAUTO_NOTFULL_WEBDIR", Plugin::getWebDir("rpauto",false));
+}
+
 function plugin_init_rpauto() {
    global $PLUGIN_HOOKS;
 

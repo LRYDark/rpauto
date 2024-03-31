@@ -49,9 +49,8 @@ class PluginRpautoMenu extends CommonGLPI
       $menu = [];
 
       if (Session::haveRight('plugin_rpauto', READ)) {
-         $web_dir = '/' . Plugin::getWebDir('rpauto', false);
          $menu['title']           = self::getMenuName();
-         $menu['page']            = $web_dir."/front/survey.php";
+         $menu['page']            = PLUGIN_RPAUTO_NOTFULL_WEBDIR."/front/survey.php";
          $menu['links']['search'] = PluginRpautoSurvey::getSearchURL(false);
          if (PluginRpautoSurvey::canCreate()) {
             $menu['links']['add'] = PluginRpautoSurvey::getFormURL(false);

@@ -31,6 +31,7 @@
 if (!defined('GLPI_ROOT')) {
    die("Sorry. You can't access this file directly");
 }
+require_once(PLUGIN_RPAUTO_DIR . "/fpdf/html2pdf.php");
 
 /**
  * Class PluginRpautoSurvey
@@ -92,26 +93,443 @@ class PluginRpautoReminder extends CommonDBTM {
     * @global $DB
     */
    static function cronRpautoMail($task = NULL) {
-
+      global $DB, $CFG_GLPI;
       
-
-
-      /*$CronTask = new CronTask();
-      if ($CronTask->getFromDBbyName(PluginRpautoReminder::class, PluginRpautoReminder::CRON_TASK_NAME)) {
-         if ($CronTask->fields["state"] == CronTask::STATE_DISABLE) {
-            return 0;
+      // Clear html
+         function ClearHtmlAuto($valuedes){
+            $values = $valuedes;
+            $values = stripcslashes($values);
+            $values = htmlspecialchars_decode($values);
+            $values = Glpi\RichText\RichText::getTextFromHtml($values);
+            $values = strip_tags($values);
+            $values = Toolbox::decodeFromUtf8($values);
+            $values = Glpi\Toolbox\Sanitizer::unsanitize($values);
+            $values = str_replace("’", "'", $values);
+            $values = str_replace("?", "'", $values);
+            return $values;
          }
-      } else {
-         return 0;
-      }
 
-      ?><script>
-         // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-         console.log("cronRpautoReminder");
-      </script><?php*/
+      // Clear html space
+         function ClearSpaceAuto($valuedes){
+               $values = $valuedes;
+               return preg_replace("# {2,}#"," \n",preg_replace("#(\r\n|\n\r|\n|\r)#"," ",$values));  // Suppression des saut de ligne superflu
+         }
+
+      Session::addMessageAfterRedirect(__('test GO','rpauto'), false, ERROR);
+      
+      // definition de la date et heure actuelle
+      date_default_timezone_set('Europe/Paris');
+         $CurrentDate = date("Y-m-d H:i:s");
+
+         $query_surveyid = $DB->query("SELECT * FROM glpi_plugin_rpauto_surveys");
+         //While 1 -------------------------------------------------------
+         while ($data = $DB->fetchArray($query_surveyid)) {
+            $surveyid = $data['id'];
+
+            // Récupértion du mail pour envoyé le PDF
+            $query_sel_mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
+
+            // Récupération des dates et heures
+            $query_rpauto_send = $DB->query("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
+            if(empty($query_rpauto_send->send_from)){
+               $OldDate = date('Y-m-d H:i:s', strtotime('-1 month', strtotime($CurrentDate)));
+            }else{
+               $OldDate = $query_rpauto_send->send_from;
+            }
+
+            //requette pour recupéré les tickets cloturées ou solutionnées sur la periode donnée
+                     // attention modifier si recursif ou pas////////////////////////////////////////////////////////////////////////////
+            $query_ticket_close_and_answer = $DB->query("SELECT id FROM glpi_tickets WHERE entities_id = 0 AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
+               //While 2 -------------------------------------------------------
+               while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
+                  $ticketid = $data2['id']; // ID DU TICKET
+
+                  // Instanciation de la classe dérivée --------------------------------------------------------------------
+                     $pdf = new FPDF('P','mm','A4');
+                     $pdf->AliasNbPages();
+                     $pdf->AddPage();
+                     $pdf->SetFont('Arial','',10); // police d'ecriture
+                     $pdf->SetFillColor(77, 113, 166);
+
+                  // Entête du PDF --------------------------------------------------------------------
+                     $config     = PluginRpConfig::getInstance();
+                     $doc        = new Document();
+                     $img        = $doc->find(['id' => $config->fields['logo_id']]);
+                     $img        = reset($img);
+                     $pdf->SetFont('Arial','B',15);// police d'ecriture
+         
+                     // logo
+                     if(isset($img['filepath'])){
+                        $img = GLPI_DOC_DIR.'/'.$img['filepath'];
+                        if(file_exists($img)){
+                           $pdf->Image($img,$config->fields['margin_left'],$config->fields['margin_top'],$config->fields['cut']);  
+                        }
+                     }
+         
+                     $pdf->Cell(50,20,'',1,0,'C');
+                     // titre du pdf
+                     $pdf->Cell(90,20,"RAPPORT D'INTERVENTION",1,0,'C');
+
+                     //date et heure de génération
+                     $pdf->SetFont('Arial','',10); // police d'ecriture
+                     $pdf->MultiCell(50,10,utf8_decode("Date d'édition :\n" .date("Y-m-d à H:i:s")),1,'C');
+                     
+             
+                  // Pied de page du PDF --------------------------------------------------------------------
+                     // Positionnement à 1,5 cm du bas
+                     $pdf->SetY(-20);
+                     // Police Arial italique 8
+                     $pdf->SetFont('Arial','I',8);
+         
+                     // Numéro de page
+                     $pdf->Cell(0,5,'Page '.$pdf->PageNo().'/{nb}',0,0,'C');
+                     $pdf->Ln();
+                     $pdf->Cell(0,5,utf8_decode($config->fields['line1']),0,0,'C');
+                     $pdf->Ln();
+                     $pdf->Cell(0,5,$config->fields['line2'],0,0,'C');  
+
+
+
+
+
+
+
+
+
+
+
+/*// --------- INFO CLIENT
+if (empty($SOCIETY)) $SOCIETY = "-";
+if (empty($ADDRESS)) $ADDRESS = "-";
+if (empty($TOWN)) $TOWN = "-";
+if (empty($PHONE)) $PHONE = "-";
+if (empty($EMAIL)) $EMAIL = "-";
+
+$pdf->Cell(95,5,utf8_decode('N° du ticket'),1,0,'L',true);
+
+$pdf->Cell(95,5,$ticketid,1,0,'L',false,$_SERVER['HTTP_REFERER']);
+$pdf->Ln(10);
+$pdf->Cell(50,5,utf8_decode('Nom de la société / Client'),1,0,'L',true);
+    if($glpi_tickets->requesttypes_id != 7 && $FORM == 'FormClient'){ 
+        $pdf->Cell(140,5,utf8_decode($SOCIETY." / ".$NAMERESPMAT),1,0,'L');
+    }else{
+        $pdf->Cell(140,5,utf8_decode($SOCIETY),1,0,'L');
+    }
+$pdf->Ln();
+$pdf->Cell(50,5,'Adresse',1,0,'L',true);
+$pdf->Cell(140,5,utf8_decode($ADDRESS),1,0,'L');
+$pdf->Ln();
+$pdf->Cell(50,5,'Ville',1,0,'L',true);
+$pdf->Cell(140,5,utf8_decode($TOWN),1,0,'L');
+$pdf->Ln(10);
+$pdf->Cell(50,5,utf8_decode('N° de Téléphone'),1,0,'L',true);
+$pdf->Cell(140,5,utf8_decode($PHONE),1,0,'L');
+$pdf->Ln();
+$pdf->Cell(50,5,utf8_decode('Email'),1,0,'L',true);
+$pdf->Cell(140,5,utf8_decode($EMAIL),1,0,'L');
+$pdf->Ln(10);
+// --------- INFO CLIENT*/
+
+
+// --------- DEMANDE
+$pdf->Cell(190,5,'Description de la demande',1,0,'C',true);
+$pdf->Ln(5);
+$pdf->MultiCell(0,5,$pdf->ClearHtml($data2['name']),1,'C');
+$pdf->Ln(0);
+// --------- DEMANDE
+
+// --------- DESCRIPTION
+if(!empty($_POST['CHECK_DESCRIPTION_TICKET']) == 'check'){
+$pdf->Ln(5);
+$pdf->Cell(190,5,utf8_decode('Description du problème'),1,0,'C',true);
+$pdf->Ln();
+
+$pdf->MultiCell(0,5,$pdf->ClearSpace($pdf->ClearHtml($data2['content'])),1,'L');
+$Y = $pdf->GetY();
+$X = $pdf->GetX();
+
+    $query = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $glpi_tickets->id AND itemtype = 'Ticket'");
+    while ($data = $DB->fetchArray($query)) {
+        if (isset($data['documents_id'])){
+            $iddoc = $data['documents_id'];
+            $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+        }
+    
+        $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+
+        if (file_exists($img)){
+            $imageSize = getimagesize($img);
+            $width = $imageSize[0];
+            $height = $imageSize[1];
+
+            if($width != 0 && $height != 0){
+                $taille = (100*$height)/$width;
+                
+                if($pdf->GetY() + $taille > 297-15) {
+                        $pdf->AddPage();
+                        $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                    $pdf->Ln($taille + 5);
+                }else{
+                        $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                        $pdf->SetXY($X,$Y+($taille));
+                    $pdf->Ln();
+                }  
+            }
+            $Y = $pdf->GetY();
+            $X = $pdf->GetX();             
+        }
+    }
+// Créé par + temps
+$pdf->SetXY($X,$Y);
+}
+// --------- DESCRIPTION
+
+if($config->fields['use_publictask'] == 1){
+$is_private = "AND is_private = 0";
+}else{
+$is_private = "";
+}
+// --------- TACHES
+if($FORM == 'FormRapport' || $FORM == 'FormRapportHotline'){
+$querytask = $DB->query("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid");
+$sumtask = 0;
+
+while ($datasum = $DB->fetchArray($querytask)) {
+    if(!empty($_POST['tasks_pdf_'.$datasum['id']])) $sumtask++;  
+}
+
+if ($sumtask > 0){
+    $querytask = $DB->query("SELECT glpi_tickettasks.id, content, date, name, actiontime FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private");
+       $pdf->Ln(5);
+    $pdf->Cell(190,5,utf8_decode('Tâche(s) : '.$sumtask),1,0,'L',true);
+       $pdf->Ln(2);            
+
+    while ($data = $DB->fetchArray($querytask)) {
+        //verifications que la variable existe
+        if(!empty($_POST['tasks_pdf_'.$data['id']])){
+
+            $pdf->Ln();
+            $pdf->MultiCell(0,5,$pdf->ClearSpace($pdf->ClearHtml($_POST['TASKS_DESCRIPTION'.$data['id']])),1,'L');
+            $Y = $pdf->GetY();
+            $X = $pdf->GetX();
+
+            if (isset($_POST['rapportimgtask'])){
+                //récupération de l'ID de l'image s'il y en a une.
+                $IdImg = $data['id'];
+                $querytaskdoc = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'TicketTask'");
+                while ($data2 = $DB->fetchArray($querytaskdoc)) {
+                    if (isset($data2['documents_id'])){
+                    $iddoc = $data2['documents_id'];
+                    $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                    }
+                
+                    $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+    
+                    if (file_exists($img)){
+                        $imageSize = getimagesize($img);
+                        $width = $imageSize[0];
+                        $height = $imageSize[1];
+        
+                        if($width != 0 && $height != 0){
+                            $taille = (100*$height)/$width;
+                            
+                                if($pdf->GetY() + $taille > 297-15) {
+                                    $pdf->AddPage();
+                                    $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                                    $pdf->Ln($taille + 5);
+                                }else{
+                                    $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                                    $pdf->SetXY($X,$Y+($taille));
+                                    $pdf->Ln();
+                                }  
+                        }
+                        $Y = $pdf->GetY();
+                        $X = $pdf->GetX();             
+                    }
+                }
+            }
+    
+            // Créé par + temps
+            $pdf->SetXY($X,$Y);
+                $pdf->Write(5,utf8_decode('Créé le : ' . $_POST['tasks_date_'.$data['id']] . ' par ' . $_POST['tasks_name_'.$data['id']]));
+            $pdf->Ln();
+            // temps d'intervention si souhaité lors de la génération
+                $pdf->Write(5,utf8_decode("Temps d'intervention : " . floor($_POST['tasks_time_'.$data['id']] / 3600) .  str_replace(":", "h",gmdate(":i", $_POST['tasks_time_'.$data['id']] % 3600))));
+            $pdf->Ln();
+            $sumtask += $_POST['tasks_time_'.$data['id']];
+
+        }
+    } 
+}
+
+// --------- TACHES
+
+// --------- SUIVI
+$query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid");
+$sumsuivi = 0;
+
+while ($data = $DB->fetchArray($query)) {
+    if(!empty($_POST['suivis_pdf_'.$data['id']])) $sumsuivi++;  
+} 
+
+if ($sumsuivi > 0){
+    $querysuivi = $DB->query("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private");
+       $pdf->Ln(5);
+    $pdf->Cell(190,5,utf8_decode('Suivi(s) : '.$sumsuivi),1,0,'L',true);
+       $pdf->Ln(2);
+
+    while ($data = $DB->fetchArray($querysuivi)) {
+        //verifications que la variable existe
+        if(!empty($_POST['suivis_pdf_'.$data['id']])){
+            
+            $pdf->Ln();
+            $pdf->MultiCell(0,5,$pdf->ClearSpace($pdf->ClearHtml($_POST['SUIVIS_DESCRIPTION'.$data['id']])),1,'L');
+            $Y = $pdf->GetY();
+            $X = $pdf->GetX();
+
+            if (isset($_POST['rapportimgsuivi'])){
+                //récupération de l'ID de l'image s'il y en a une.
+                $IdImg = $data['id'];
+        
+                $querysuividoc = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'ITILFollowup'");
+                while ($data2 = $DB->fetchArray($querysuividoc)) {
+                    if (isset($data2['documents_id'])){
+                        $iddoc = $data2['documents_id'];
+                        $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                    }
+                
+                    $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+    
+                    if (file_exists($img)){
+                        $imageSize = getimagesize($img);
+                        $width = $imageSize[0];
+                        $height = $imageSize[1];
+    
+                        if($width != 0 && $height != 0){
+                        $taille = (100*$height)/$width;
+                        
+                            if($pdf->GetY() + $taille > 297-15) {
+                                    $pdf->AddPage();
+                                    $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                                $pdf->Ln($taille + 5);
+                            }else{
+                                    $pdf->Image($img,$X,$pdf->GetY()+2,100,$taille);
+                                    $pdf->SetXY($X,$Y+($taille));
+                                $pdf->Ln();
+                            }  
+                        }
+                        $Y = $pdf->GetY();
+                        $X = $pdf->GetX();                
+                    }
+                }
+            }
+    
+            // Créé par + temps
+            $pdf->SetXY($X,$Y);
+            $pdf->Write(5,utf8_decode('Créé le : ' . $_POST['suivis_date_'.$data['id']] . ' par ' . $_POST['suivis_name_'.$data['id']]));
+            $pdf->Ln();
+           
+        }         
+    } 
+}
+// --------- SUIVI
+
+// --------- TEMPS D'INTERVENTION
+    $pdf->Ln(5);
+if (isset($_POST['rapporttime'])){
+    $pdf->Cell(80,5,utf8_decode("Temps d'intervention total"),1,0,'L',true);
+    $pdf->Cell(110,5,utf8_decode(floor($sumtask / 3600) .  str_replace(":", "h",gmdate(":i", $sumtask % 3600))),1,0,'L');
+    $pdf->Ln(7);
+}
+}
+// --------- TEMPS D'INTERVENTION
+
+// --------- TEMPS DE TRAJET
+if ($plugin->isActivated('rt')) {
+if ($FORM == "FormRapportHotline" && $config->fields['time_hotl'] == 1 || $FORM == 'FormRapport' && $config->fields['time'] == 1){
+    $sumroutetime = 0;
+    $timeroute = $DB->query("SELECT routetime FROM `glpi_plugin_rt_tickets` WHERE tickets_id = $ticketid");
+        while ($data = $DB->fetchArray($timeroute)) {
+            $sumroutetime += $data['routetime'];
+        }
+
+        $pdf->Cell(80,5,utf8_decode('Temps de trajet total'),1,0,'L',true);
+        $pdf->Cell(110,5,utf8_decode(str_replace(":", "h", gmdate("H:i",$sumroutetime*60))),1,0,'L');
+        $pdf->Ln(7);
+}
+}
+// --------- TEMPS DE TRAJET
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                  $FileName           = date('Ymd-His')."_RA_Ticket_".$ticketid. ".pdf";
+                  $Path               = 'C:\wamp64\www\glpi/files/_plugins/rp/rapports_auto/'.$FileName;
+                  $pdf->Output($Path, 'F'); //enregistrement du pdf
+
+               }//While 2 -------------------------------------------------------
+         } //While 1 -------------------------------------------------------
    
 
-      self::sendMail();
+
+
+
+
+   
+      Session::addMessageAfterRedirect(__('Test END','rpauto'), false, ERROR);
+      //self::sendMail();
    }
 
    static function sendMail() {
@@ -138,14 +556,12 @@ class PluginRpautoReminder extends CommonDBTM {
       $mmail->Subject = ('TEST');
       $mmail->Body = GLPIMailer::normalizeBreaks('Test mail auto RAPPORT PDF');
 
-
          // envoie du mail
          if(!$mmail->send()) {
                message("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo, ERROR);
          }else{
                message("<br>Mail envoyé à " . $EMAIL, INFO);
          }
-         
       $mmail->ClearAddresses();
 
 

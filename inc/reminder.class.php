@@ -45,7 +45,7 @@ class PluginRpautoReminder extends CommonDBTM {
    public static $itemtype = TicketRpauto::class;
    public static $items_id = 'ticketrpautos_id';
 
-   const CRON_TASK_NAME = 'RpautoReminder';
+   const CRON_TASK_NAME = 'RpautoMail';
 
 
    /**
@@ -55,7 +55,7 @@ class PluginRpautoReminder extends CommonDBTM {
     * @return string
     **/
    static function getTypeName($nb = 0) {
-      return _n('Rpauto reminder', 'Rpauto reminders', $nb, 'rpauto');
+      return _n('Rpauto Mail', 'Rpauto Mail', $nb, 'rpauto');
    }
 
    ////// CRON FUNCTIONS ///////
@@ -69,7 +69,7 @@ class PluginRpautoReminder extends CommonDBTM {
 
       switch ($name) {
          case self::CRON_TASK_NAME:
-            return ['description' => __('Send automaticaly survey reminders', 'rpauto')];   // Optional
+            return ['description' => __('Envoyer automatiquement les rapports PDF par mail', 'rpauto')];   // Optional
             break;
       }
       return [];
@@ -91,7 +91,31 @@ class PluginRpautoReminder extends CommonDBTM {
     *
     * @global $DB
     */
-   static function cronRpautoReminder($task = NULL) {
+   static function cronRpautoMail($task = NULL) {
+
+      
+
+
+      /*$CronTask = new CronTask();
+      if ($CronTask->getFromDBbyName(PluginRpautoReminder::class, PluginRpautoReminder::CRON_TASK_NAME)) {
+         if ($CronTask->fields["state"] == CronTask::STATE_DISABLE) {
+            return 0;
+         }
+      } else {
+         return 0;
+      }
+
+      ?><script>
+         // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
+         console.log("cronRpautoReminder");
+      </script><?php*/
+   
+
+      self::sendMail();
+   }
+
+   static function sendMail() {
+
 
       // génération du mail 
       $mmail = new GLPIMailer();
@@ -125,25 +149,8 @@ class PluginRpautoReminder extends CommonDBTM {
       $mmail->ClearAddresses();
 
 
-      /*$CronTask = new CronTask();
-      if ($CronTask->getFromDBbyName(PluginRpautoReminder::class, PluginRpautoReminder::CRON_TASK_NAME)) {
-         if ($CronTask->fields["state"] == CronTask::STATE_DISABLE) {
-            return 0;
-         }
-      } else {
-         return 0;
-      }
 
-      ?><script>
-         // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-         console.log("cronRpautoReminder");
-      </script><?php*/
-   
-
-      self::sendReminders();
-   }
-
-   static function sendReminders() {
+      /*
 
       $entityDBTM = new Entity();
 
@@ -270,6 +277,6 @@ class PluginRpautoReminder extends CommonDBTM {
                }
             }
          }
-      }
+      }*/
    }
 }

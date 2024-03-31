@@ -31,3 +31,12 @@ ADD CONSTRAINT fk_survey_id
 FOREIGN KEY (survey_id)
 REFERENCES glpi_plugin_rpauto_surveys(id)
 ON DELETE CASCADE;
+
+CREATE TABLE `glpi_plugin_rpauto_send` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `survey_id` int unsigned NOT NULL DEFAULT 0,
+  `send_from` timestamp NULL DEFAULT NULL,
+  `send_to` timestamp NULL DEFAULT NULL,
+  `date_creation` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;

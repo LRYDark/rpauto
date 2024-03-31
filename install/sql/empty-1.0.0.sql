@@ -25,3 +25,9 @@ CREATE TABLE `glpi_plugin_rpauto_surveysuser` (
   `alternative_email` varchar(255) collate utf8mb4_unicode_ci default NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE glpi_plugin_rpauto_surveysuser
+ADD CONSTRAINT fk_survey_id
+FOREIGN KEY (survey_id)
+REFERENCES glpi_plugin_rpauto_surveys(id)
+ON DELETE CASCADE;

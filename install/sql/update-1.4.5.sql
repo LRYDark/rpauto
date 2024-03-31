@@ -1,1 +1,0 @@
-ALTER TABLE `glpi_plugin_rpauto_surveys` ADD `reminders_days` int(11) NOT NULL DEFAULT '30';

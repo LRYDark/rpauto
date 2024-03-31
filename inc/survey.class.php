@@ -42,58 +42,19 @@ class PluginRpautoSurvey extends CommonDBTM {
 
    public $can_be_translated = true;*/
 
-   /**
-    * Return the localized name of the current Type
-    * Should be overloaded in each new class
-    *
-    * @return string
-    **/
    static function getTypeName($nb = 0) {
       return _n('Rpauto survey', 'Rpauto surveys', $nb, 'rpauto');
    }
 
-   /**
-    * Define tabs to display
-    *
-    * NB : Only called for existing object
-    *
-    * @param $options array
-    *     - withtemplate is a template view ?
-    *
-    * @return array containing the onglets
-    **/
+
    function defineTabs($options = []) {
 
       $ong = [];
       $this->addDefaultFormTab($ong);
-      /*$this->addStandardTab(PluginRpautoSurveyQuestion::class, $ong, $options);
-      $this->addStandardTab(PluginRpautoSurveyAnswer::class, $ong, $options);
-      $this->addStandardTab(PluginRpautoSurveyResult::class, $ong, $options);
-      $this->addStandardTab(PluginRpautoSurveyTranslation::class, $ong, $options);
-      $this->addStandardTab(PluginRpautoSurveyReminder::class, $ong, $options);*/
-
       $this->addStandardTab(Log::class, $ong, $options);
       return $ong;
    }
 
-   /**
-    * Is translation enabled for this itemtype
-    *
-    * @return true if translation is available, false otherwise
-    **/
-   function maybeTranslated () {
-      return $this->can_be_translated;
-   }
-
-   /**
-    * Have I the right to "create" the Object
-    *
-    * Default is true and check entity if the objet is entity assign
-    *
-    * May be overloaded if needed
-    *
-    * @return boolean
-    **/
    function canCreateItem() {
 
       if (!$this->checkEntity()) {
@@ -186,7 +147,8 @@ class PluginRpautoSurvey extends CommonDBTM {
     * @return bool
     */
    function showForm($ID, $options = []) {
-
+      global $DB;
+      
       if (!$this->canView()) {
          return false;
       }
@@ -255,12 +217,15 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "</td>";
       echo "<td colspan='2'></td></tr>";
 
+
       echo "<td>" . __('Email') . "</td>";
       echo "<td>";
-      echo Html::input('mail', ['value' => $this->fields['mail'], 'size' => 40]);
+      $mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
+      if(empty($mail->alternative_email)){$mail = ' ';}else{$mail = $mail->alternative_email;}
+      echo Html::input('mail', ['value' => $mail, 'size' => 40]);
       echo "</td>";  
 
-      $test = $this->showFormButtons($options);
+      $this->showFormButtons($options);
       Html::closeForm();
 
       return true;
@@ -268,10 +233,6 @@ class PluginRpautoSurvey extends CommonDBTM {
 
    /**
     * Prepare input datas for adding the item
-    *
-    * @param $input datas used to add the item
-    *
-    * @return the modified $input array
     **/
    function prepareInputForAdd($input) {
 
@@ -292,14 +253,14 @@ class PluginRpautoSurvey extends CommonDBTM {
 
    /**
     * Prepare input datas for updating the item
-    *
-    * @param $input datas used to update the item
-    *
-    * @return the modified $input array
     **/
-   function prepareInputForUpdate($input) {
+   function prepareInputForUpdate($input){
+      global $DB;
 
-      Session::addMessageAfterRedirect('test 2 :'.$input['id'], false, INFO);
+      $id = $input['id'];
+      $mail = $input['mail'];      
+      $query= "UPDATE glpi_plugin_rpauto_surveysuser SET alternative_email = '$mail' WHERE survey_id = $id";
+      $DB->query($query);
 
       //active external survey for entity
       if ($input['is_active'] == 1) {
@@ -318,188 +279,4 @@ class PluginRpautoSurvey extends CommonDBTM {
 
       return $input;
    }
-
-   /**
-    * Actions done before the DELETE of the item in the database /
-    * Maybe used to add another check for deletion
-    *
-    * @return bool : true if item need to be deleted else false
-    **/
-   function pre_deleteItem() {
-      //we must delete associated questions and answers
-      $question = new PluginRpautoSurveyQuestion;
-      $question->deleteByCriteria([PluginRpautoSurveyQuestion::$items_id => $this->getID()]);
-
-      $answer = new PluginRpautoSurveyAnswer;
-      $answer->deleteByCriteria([PluginRpautoSurveyAnswer::$items_id => $this->getID()]);
-
-      $reminder = new PluginRpautoSurveyReminder();
-      $reminder->deleteByCriteria([PluginRpautoSurveyReminder::$items_id => $this->getID()]);
-
-      return true;
-   }
-
-   /**
-    * Return survey by entity
-    *
-    * @param $entities_id
-    *
-    * @return bool|\PluginRpautoSurvey
-    */
-   static function getObjectForEntity($entities_id) {
-      global $DB;
-      $dbu = new DbUtils();
-      $where = $dbu->getEntitiesRestrictRequest("AND", "survey", 'entities_id', $entities_id, true);
-
-      $query = "SELECT `survey`.`id`
-                FROM `".$dbu->getTableForItemType(__CLASS__)."` as `survey`
-                LEFT JOIN `glpi_entities`
-                  ON (`glpi_entities`.`id` = `survey`.`entities_id`)
-                WHERE `is_active` = 1 $where
-                ORDER BY `glpi_entities`.`level` DESC
-                LIMIT 1";
-
-      $result = $DB->query($query);
-      if (($id = $DB->result($result,0,"id")) === NULL) {
-         return false;
-      } else {
-         return $id;
-      }
-      return false;
-   }
-
-   /**
-    * @see CommonDBTM::getSpecificMassiveActions()
-    **/
-   function getSpecificMassiveActions($checkitem = null) {
-
-      $canadd = Session::haveRight(self::$rightname, CREATE);
-      $actions = parent::getSpecificMassiveActions($checkitem);
-
-      if ($canadd) {
-         $actions[__CLASS__.MassiveAction::CLASS_ACTION_SEPARATOR.'duplicate'] = _x('button', 'Duplicate');
-      }
-      return $actions;
-   }
-
-   /**
-    * @since version 0.85
-    *
-    * @see CommonDBTM::showMassiveActionsSubForm()
-    **/
-   static function showMassiveActionsSubForm(MassiveAction $ma) {
-
-      switch ($ma->getAction()) {
-         case 'duplicate' :
-            $entity_assign = false;
-            $dbu = new DbUtils();
-            foreach ($ma->getitems() as $itemtype => $ids) {
-               if ($item = $dbu->getItemForItemtype($itemtype)) {
-                  if ($item->isEntityAssign()) {
-                     $entity_assign = true;
-                     break;
-                  }
-               }
-            }
-            if ($entity_assign) {
-               Entity::dropdown();
-            }
-            echo "<br><br>".Html::submit(_x('button', 'Duplicate'),
-                                         ['name' => 'massiveaction', 'class' => 'btn btn-primary']);
-            return true;
-      }
-      return parent::showMassiveActionsSubForm($ma);
-   }
-
-   /**
-    * @since version 0.85
-    *
-    * @see CommonDBTM::processMassiveActionsForOneItemtype()
-    **/
-   static function processMassiveActionsForOneItemtype(MassiveAction $ma, CommonDBTM $item,
-                                                       array $ids) {
-
-      switch ($ma->getAction()) {
-         case 'duplicate':
-            $survey = new self();
-            foreach ($ids as $id) {
-               if ($item->getFromDB($id)) {
-                  if ($survey->duplicateSurvey($id, $ma->POST['entities_id'])) {
-                     $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_OK);
-                  } else {
-                     $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
-                     $ma->addMessage($item->getErrorMessage(ERROR_ON_ACTION));
-                  }
-               } else {
-                  $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
-                  $ma->addMessage($item->getErrorMessage(ERROR_NOT_FOUND));
-               }
-            }
-            break;
-
-      }
-      parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
-   }
-
-   /**
-    * Duplicate a survey
-    *
-    * @param $ID        of the rule to duplicate
-    *
-    * @since version 0.85
-    *
-    * @return true if all ok
-    **/
-   function duplicateSurvey($ID, $entities_id) {
-
-      //duplicate survey
-      $survey = new self();
-      $survey->getFromDB($ID);
-
-      //Update fields of the new duplicate
-      $survey->fields['name']        = sprintf(__('Copy of %s'),
-                                               $survey->fields['name']);
-      $survey->fields['is_active']   = 0;
-      $survey->fields['entities_id'] = $entities_id;
-      unset($survey->fields['id']);
-
-      //add new duplicate
-      $input = toolbox::addslashes_deep($survey->fields);
-      $newID = $survey->add($input);
-      if (!$newID) {
-         return false;
-      }
-      //find and duplicate questions
-      $question_obj  = new PluginRpautoSurveyQuestion();
-      $questions = $question_obj->find(['plugin_rpauto_surveys_id' => $ID]);
-      $questions = toolbox::addslashes_deep($questions);
-      foreach ($questions as $question) {
-         $question['plugin_rpauto_surveys_id'] = $newID;
-         $question_id = $question['id'];
-         unset($question['id']);
-         if (!$new_question_id = $question_obj->add($question)) {
-            return false;
-         }
-         //find and duplicate translations
-         $translation_obj  = new PluginRpautoSurveyTranslation();
-         $translations = $translation_obj->find([
-            'plugin_rpauto_surveys_id' => $ID,
-            'glpi_plugin_rpauto_surveyquestions_id' => $question_id
-         ]);
-         $translations = toolbox::addslashes_deep($translations);
-         foreach ($translations as $translation) {
-            if (!$translation_obj->newSurveyTranslation([
-               'survey_id' => $newID,
-               'question_id' => $new_question_id,
-               'language' => $translation['language'],
-               'value' => $translation['value']
-            ])) {
-               return false;
-            }
-         }
-      }
-
-      return true;
-   }
-
 }

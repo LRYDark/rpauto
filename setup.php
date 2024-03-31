@@ -49,19 +49,6 @@ function plugin_init_rpauto() {
       //if glpi is loaded
       if (Session::getLoginUserID()) {
 
-         /*Plugin::registerClass(PluginRpautoProfile::class,
-                               ['addtabon' => Profile::class]);*/
-
-         /*$PLUGIN_HOOKS['pre_item_form']['rpauto'] = [PluginRpautoSurveyAnswer::class, 'displayRpauto'];
-
-         $PLUGIN_HOOKS['pre_item_update']['rpauto'][TicketRpauto::class] = [PluginRpautoSurveyAnswer::class,
-                                                                                        'preUpdateRpauto'];
-
-         $PLUGIN_HOOKS['item_get_events']['rpauto'] =
-            ['NotificationTargetTicket' => ['PluginRpautoNotificationTargetTicket', 'addEvents']];
-
-         $PLUGIN_HOOKS['item_delete']['rpauto'] = ['Ticket' => ['PluginRpautoReminder', 'deleteItem']];*/
-
          //current user must have config rights
          if (Session::haveRight('plugin_rpauto', READ)) {
             $config_page = 'front/survey.php';
@@ -69,18 +56,7 @@ function plugin_init_rpauto() {
 
             $PLUGIN_HOOKS["menu_toadd"]['rpauto'] = ['admin' => PluginRpautoMenu::class];
          }
-
-         /*if (isset($_SESSION['glpiactiveprofile']['interface'])
-             && $_SESSION['glpiactiveprofile']['interface'] == 'central') {
-            $PLUGIN_HOOKS['add_javascript']['rpauto'] = ["rpauto.js"];
-         }
-         if (class_exists('PluginMydashboardMenu')) {
-            $PLUGIN_HOOKS['mydashboard']['rpauto'] = [PluginRpautoDashboard::class];
-         }*/
       }
-
-        /* $PLUGIN_HOOKS['item_get_datas']['rpauto'] = [NotificationTargetTicket::class => [PluginRpautoSurveyAnswer::class,
-         'addNotificationDatas']];*/
    }
 }
 

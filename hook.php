@@ -37,16 +37,15 @@ function plugin_rpauto_install() {
    //include_once(Plugin::getPhpDir('rpauto')."/inc/notificationtargetticket.class.php");
 
    if (!$DB->tableExists("glpi_plugin_rpauto_surveys")) {
-      $DB->runFile(Plugin::getPhpDir('rpauto')."/install/sql/empty-1.6.0.sql");
+      $DB->runFile(Plugin::getPhpDir('rpauto')."/install/sql/empty-1.0.0.sql");
 
-   } else {
+   } /*else {
       //version beta 0.1.0
       if (!$DB->fieldExists("glpi_plugin_rpauto_surveys", "reminders_days")) {
          $DB->runFile(Plugin::getPhpDir('rpauto')."/install/sql/update-1.4.5.sql");
       }
-   }
+   }*/
 
-   //PluginRpautoNotificationTargetTicket::install();
    PluginRpautoProfile::initProfile();
    PluginRpautoProfile::createFirstAccess($_SESSION['glpiactiveprofile']['id']);
 
@@ -61,21 +60,19 @@ function plugin_rpauto_uninstall() {
    global $DB;
 
    include_once(Plugin::getPhpDir('rpauto')."/inc/profile.class.php");
-   //include_once(Plugin::getPhpDir('rpauto')."/inc/menu.class.php");
-   //include_once(Plugin::getPhpDir('rpauto')."/inc/notificationtargetticket.class.php");
+   include_once(Plugin::getPhpDir('rpauto')."/inc/menu.class.php");
 
+   $DB->query("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser;");
+
+   /*
    $tables = [
       "glpi_plugin_rpauto_surveys",
-      "glpi_plugin_rpauto_surveyquestions",
-      "glpi_plugin_rpauto_surveyanswers",
-      "glpi_plugin_rpauto_surveyreminders",
-      "glpi_plugin_rpauto_surveytranslations",
-      "glpi_plugin_rpauto_reminders"
+      "glpi_plugin_rpauto_surveysuser"
    ];
 
    foreach ($tables as $table) {
       $DB->query("DROP TABLE IF EXISTS `$table`;");
-   }
+   }*/
 
    $tables_glpi = ["glpi_logs"];
 
@@ -90,10 +87,7 @@ function plugin_rpauto_uninstall() {
       $profileRight->deleteByCriteria(['name' => $right['field']]);
    }
    PluginRpautoProfile::removeRightsFromSession();
-
    PluginRpautoMenu::removeRightsFromSession();
-
-   //PluginRpautoNotificationTargetTicket::uninstall();
 
    CronTask::Register(PluginRpautoReminder::class, PluginRpautoReminder::CRON_TASK_NAME, DAY_TIMESTAMP);
 

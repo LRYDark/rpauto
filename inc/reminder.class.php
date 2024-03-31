@@ -380,21 +380,15 @@ class PluginRpautoReminder extends CommonDBTM {
                      $is_private_suivis = "";
                   }
                   // --------- SUIVI
-                  $query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
+                  $query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid");
                   $sumsuivi = 0;
 
-                  Session::addMessageAfterRedirect(__('test 1','rpauto'), false, ERROR);
-
-                  if ($DB->fetchArray($query)){
-                     while ($datasumsuivi = $DB->fetchArray($query)) {
-                        Session::addMessageAfterRedirect(__('test 2','rpauto'), false, ERROR);
-                        if(!empty($datasumsuivi['id'])) $sumsuivi++;  
-                     } 
-                  }
+                  while ($datasumsuivi = $DB->fetchArray($query)) {
+                     if(!empty($datasumsuivi['id'])) $sumsuivi++;  
+                  } 
                   
-                  Session::addMessageAfterRedirect(__('test 3','rpauto'), false, ERROR);
                   if ($sumsuivi > 0){
-                     $querysuivi = $DB->query("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private");
+                     $querysuivi = $DB->query("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
                         $pdf->Ln(5);
                      $pdf->Cell(190,5,utf8_decode('Suivi(s) : '.$sumsuivi),1,0,'L',true);
                         $pdf->Ln(2);

@@ -87,3 +87,15 @@ function plugin_version_rpauto() {
       ]
    ];
 }
+
+/**
+ * @return bool
+ */
+function plugin_rpauto_check_prerequisites() {
+   if (Plugin::isPluginActive('rp')) {
+      return true;
+   } else {
+      echo "Le plugin RPauto a besoin du plugin RP pour fonctionner. Activé d'abord le plugin Rapport.";
+      return false;
+   }
+}

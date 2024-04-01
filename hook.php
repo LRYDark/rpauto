@@ -68,6 +68,7 @@ function plugin_rpauto_uninstall() {
                WHERE `itemtype` = 'PluginRpautoSurvey';");
    }
 
+
    $notifications_templates = $DB->query("SELECT * FROM glpi_notificationtemplates WHERE comment = 'Created by the plugin RPAUTO';");
    while ($notification_template = $DB->fetchArray($notifications_templates)) {
       $id_notificationtemplates = $notification_template['id'];

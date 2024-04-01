@@ -115,13 +115,13 @@ class PluginRpautoReminder extends CommonDBTM {
                return preg_replace("# {2,}#"," \n",preg_replace("#(\r\n|\n\r|\n|\r)#"," ",$values));  // Suppression des saut de ligne superflu
          }
 
-         function exportZIP($SeePath, $pdfFiles){
+         function exportZIP($SeePath, $pdfFiles, $i){
 
             $doc        = new Document();
             $zip        = new ZipArchive();
       
             // Créez un nouveau fichier zip
-            $FileName = '/RapportPDF_Export-'.date('Ymd-His').'.zip';
+            $FileName = '/RapportPDF_'.$i.'_Export-'.date('Ymd-His').'.zip';
             $zipFileName = $SeePath . $FileName;
             if ($zip->open($zipFileName, ZipArchive::CREATE)!==TRUE) {
                exit("Impossible d'ouvrir le fichier <$zipFileName>\n");
@@ -157,6 +157,7 @@ class PluginRpautoReminder extends CommonDBTM {
       // definition de la date et heure actuelle
       date_default_timezone_set('Europe/Paris');
          $CurrentDate = date("Y-m-d H:i:s");
+         $i = 0;
 
          $query_surveyid = $DB->query("SELECT id FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
          //While 1 -------------------------------------------------------
@@ -166,7 +167,7 @@ class PluginRpautoReminder extends CommonDBTM {
 
             // Récupértion du mail pour envoyé le PDF
             $query_sel_mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
-
+            
             // Récupération des dates et heures
             $query_rpauto_send = $DB->query("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
             if(empty($query_rpauto_send->send_from)){
@@ -271,11 +272,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   $pdf->Cell(95,5,$ticketid,1,0,'L',false,$_SERVER['HTTP_REFERER']);
                   $pdf->Ln(10);
                   $pdf->Cell(50,5,utf8_decode('Nom de la société / Client'),1,0,'L',true);
-                     if($glpi_tickets->requesttypes_id != 7 && $FORM == 'FormClient'){ 
-                        $pdf->Cell(140,5,utf8_decode($SOCIETY." / ".$NAMERESPMAT),1,0,'L');
-                     }else{
-                        $pdf->Cell(140,5,utf8_decode($SOCIETY),1,0,'L');
-                     }
+                  $pdf->Cell(140,5,utf8_decode($SOCIETY),1,0,'L');
                   $pdf->Ln();
                   $pdf->Cell(50,5,'Adresse',1,0,'L',true);
                   $pdf->Cell(140,5,utf8_decode($ADDRESS),1,0,'L');
@@ -518,7 +515,8 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
                   // --------- TEMPS DE TRAJET
 
-                  $FileName           = date('Ymd-His')."_RA_Ticket_".$ticketid. ".pdf";
+                 
+                  $FileName           = date('Ymd-His')."_RA_Ticket_".$ticketid.".pdf";
                   $Path               = 'C:\wamp64\www\glpi/files/_plugins/rp/rapports_auto/'.$FileName;
                   $pdf->Output($Path, 'F'); //enregistrement du pdf
 
@@ -528,18 +526,25 @@ class PluginRpautoReminder extends CommonDBTM {
                }//While 2 -------------------------------------------------------
          
                $SeePath = "C:\wamp64\www\glpi/files/_plugins/rp/rapportsMass/";
-               $zipFileName = exportZIP($SeePath, $pdfFiles);
+               $zipFileName = exportZIP($SeePath, $pdfFiles, $i++);
       
                if($zipFileName != 'no'){
-                  self::sendMail($zipFileName, $EMAIL, $surveyid, $OldDate, $CurrentDate);
+                  self::sendMail($zipFileName, $sendmail, $surveyid, $OldDate, $CurrentDate);
+                  Session::addMessageAfterRedirect(__($query_sel_mail->alternative_email,'rpauto'), false, ERROR);
                }
             } //While 1 -------------------------------------------------------            
-      Session::addMessageAfterRedirect(__('Test END','rpauto'), false, ERROR);
    }
+
+   static function balise($corps, $Balises){
+      foreach($Balises as $balise) {
+          $corps = str_replace($balise['Balise'], $balise['Value'], $corps);
+      }
+      return $corps;
+   } 
 
    static function sendMail($doc, $email, $surveyid, $OldDate, $CurrentDate) {
       global $DB, $CFG_GLPI;
-      
+
       // génération et gestion des balises
          //BALISES
          $Balises = array(
@@ -547,14 +552,7 @@ class PluginRpautoReminder extends CommonDBTM {
             array('Balise' => '##date.current##'    , 'Value' => $CurrentDate),
          );
       // génération et gestion des balises
-
-      function balise($corps, $Balises){
-         foreach($Balises as $balise) {
-             $corps = str_replace($balise['Balise'], $balise['Value'], $corps);
-         }
-         return $corps;
-      } 
-
+      
       // génération du mail 
       $mmail = new GLPIMailer();
 
@@ -583,11 +581,11 @@ class PluginRpautoReminder extends CommonDBTM {
       $mmail->isHTML(true);
 
     // Objet et sujet du mail 
-    $mmail->Subject = balise($NotifMailTemplate->subject, $Balises);
-        $mmail->Body = GLPIMailer::normalizeBreaks(balise($BodyHtml, $Balises)).$footer;
-        $mmail->AltBody = GLPIMailer::normalizeBreaks(balise($BodyText, $Balises)).$footer;
+    $mmail->Subject = self::balise($NotifMailTemplate->subject, $Balises);
+        $mmail->Body = GLPIMailer::normalizeBreaks(self::balise($BodyHtml, $Balises)).$footer;
+        $mmail->AltBody = GLPIMailer::normalizeBreaks(self::balise($BodyText, $Balises)).$footer;
 
-         // envoie du mail
+        // envoie du mail
          if(!$mmail->send()) {
                Session::addMessageAfterRedirect(__("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo,'rpauto'), false, ERROR);
          }else{

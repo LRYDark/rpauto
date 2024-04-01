@@ -1,8 +1,7 @@
-# noinspection SqlNoDataSourceInspectionForFile
-
 CREATE TABLE `glpi_plugin_rpauto_surveys` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `entities_id` int unsigned NOT NULL DEFAULT 0,
+  `gabarit` int NOT NULL DEFAULT 0,
   `is_recursive` tinyint NOT NULL default '0',
   `is_active` tinyint NOT NULL default '0',
   `name` varchar(255) collate utf8mb4_unicode_ci default NULL,

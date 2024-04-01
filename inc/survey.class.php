@@ -190,6 +190,24 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "</td><td colspan='2'></td></tr>";
 
       echo "<tr class='tab_bg_1'>";
+      echo "<td>" . __('Model de notification') . "</td>";
+      echo "<td>";
+      //notificationtemplates_id
+      Dropdown::show('NotificationTemplate', [
+         'name' => 'gabarit',
+         'value' => $this->fields["gabarit"],
+         'display_emptychoice' => 1,
+         'specific_tags' => [],
+         'itemtype' => 'NotificationTemplate',
+         'displaywith' => [],
+         'emptylabel' => "-----",
+         'used' => [],
+         'toadd' => [],
+         'entity_restrict' => 0,
+      ]); 
+      echo "</td><td colspan='2'></td></tr>";
+
+      echo "<tr class='tab_bg_1'>";
       echo "<td>" . __('Active') . "</td>";
       echo "<td>";
       Dropdown::showYesNo("is_active", $this->fields["is_active"]);
@@ -229,7 +247,6 @@ class PluginRpautoSurvey extends CommonDBTM {
          echo "</td>";
       }
       echo "<td colspan='2'></td></tr>";
-
 
       echo "<td>" . __('Email') . "</td>";
       echo "<td>";

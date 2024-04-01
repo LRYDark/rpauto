@@ -515,23 +515,49 @@ class PluginRpautoReminder extends CommonDBTM {
                   $pdfFiles[] = $Path;
 
                }//While 2 -------------------------------------------------------
-         } //While 1 -------------------------------------------------------
+         
+               $SeePath = "C:\wamp64\www\glpi/files/_plugins/rp/rapportsMass/";
+               $zipFileName = exportZIP($SeePath, $pdfFiles);
       
-         $SeePath = "C:\wamp64\www\glpi/files/_plugins/rp/rapportsMass/";
-         $zipFileName = exportZIP($SeePath, $pdfFiles);
-
-         if($zipFileName != 'no'){
-            //self::sendMail($zipFileName, $EMAIL);
-         }
-            
+               if($zipFileName != 'no'){
+                  self::sendMail($zipFileName, $EMAIL, $surveyid, $OldDate, $CurrentDate);
+               }
+            } //While 1 -------------------------------------------------------            
       Session::addMessageAfterRedirect(__('Test END','rpauto'), false, ERROR);
    }
 
-   static function sendMail($doc, $email) {
+   static function sendMail($doc, $email, $surveyid, $OldDate, $CurrentDate) {
+      global $DB, $CFG_GLPI;
+      
+      // génération et gestion des balises
+         //BALISES
+         $Balises = array(
+            array('Balise' => '##date.old##'        , 'Value' => $OldDate),
+            array('Balise' => '##date.current##'    , 'Value' => $CurrentDate),
+         );
+      // génération et gestion des balises
+      Session::addMessageAfterRedirect(__($OldDate,'rpauto'), false, INFO);
+      Session::addMessageAfterRedirect(__($CurrentDate,'rpauto'), false, INFO);
 
+      function balise($corps){
+         global $Balises;
+         foreach($Balises as $balise) {
+             $corps = str_replace($balise['Balise'], $balise['Value'], $corps);
+         }
+         return $corps;
+      } 
 
       // génération du mail 
       $mmail = new GLPIMailer();
+
+      $gabarit = $DB->query("SELECT gabarit FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
+      $notificationtemplates_id = $gabarit->gabarit;
+      $NotifMailTemplate = $DB->query("SELECT * FROM glpi_notificationtemplatetranslations WHERE notificationtemplates_id=$notificationtemplates_id")->fetch_object();
+         $BodyHtml = html_entity_decode($NotifMailTemplate->content_html, ENT_QUOTES, 'UTF-8');
+         $BodyText = html_entity_decode($NotifMailTemplate->content_text, ENT_QUOTES, 'UTF-8');
+
+      $footer = $DB->query("SELECT value FROM glpi_configs WHERE name = 'mailing_signature'")->fetch_object();
+      if(!empty($footer->value)){$footer = html_entity_decode($footer->value, ENT_QUOTES, 'UTF-8');}else{$footer='';}
 
       // For exchange
          $mmail->AddCustomHeader("X-Auto-Response-Suppress: OOF, DR, NDR, RN, NRN");
@@ -544,150 +570,22 @@ class PluginRpautoReminder extends CommonDBTM {
          $mmail->SetFrom($CFG_GLPI["from_email"], $CFG_GLPI["from_email_name"], false);
       }
 
-      $mmail->AddAddress('lrydark93@gmail.com');
+      $mmail->AddAddress($email);
+      $mmail->addAttachment($doc); // Ajouter un attachement (documents)
       $mmail->isHTML(true);
 
-      // Objet et sujet du mail 
-      $mmail->Subject = ('TEST');
-      $mmail->Body = GLPIMailer::normalizeBreaks('Test mail auto RAPPORT PDF');
+    // Objet et sujet du mail 
+    $mmail->Subject = balise($NotifMailTemplate->subject);
+        $mmail->Body = GLPIMailer::normalizeBreaks(balise($BodyHtml)).$footer;
+        $mmail->AltBody = GLPIMailer::normalizeBreaks(balise($BodyText)).$footer;
 
          // envoie du mail
          if(!$mmail->send()) {
-               message("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo, ERROR);
+               Session::addMessageAfterRedirect(__("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo,'rpauto'), false, ERROR);
          }else{
-               message("<br>Mail envoyé à " . $EMAIL, INFO);
+               Session::addMessageAfterRedirect(__("<br>Mail envoyé à " . $email,'rpauto'), false, INFO);
          }
-      $mmail->ClearAddresses();
-
-
-
-      /*
-
-      $entityDBTM = new Entity();
-
-      $pluginRpautoSurveyDBTM         = new PluginRpautoSurvey();
-      $pluginRpautoSurveyReminderDBTM = new PluginRpautoSurveyReminder();
-      $pluginRpautoReminderDBTM       = new PluginRpautoReminder();
-
-      $surveys = $pluginRpautoSurveyDBTM->find(['is_active' => true]);
-
-      foreach ($surveys as $survey) {
-
-         // Entity
-         $entityDBTM->getFromDB($survey['entities_id']);
-
-         // Don't get tickets rpauto with date older than max_close_date
-//                           $max_close_date = date('Y-m-d', strtotime($entityDBTM->getField('max_closedate')));
-         $nb_days = $survey['reminders_days'];
-         $dt             = date("Y-m-d");
-         $max_close_date = date('Y-m-d', strtotime("$dt - ".$nb_days." day"));
-
-         // Ticket Rpauto
-         $ticketRpautos = self::getTicketRpauto($max_close_date, null, $survey['entities_id']);
-
-         ?><script>
-            // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-            console.log("send reminders 1");
-         </script><?php
          
- 
-         foreach ($ticketRpautos as $k => $ticketRpauto) {
-
-            // Survey Reminders
-            $surveyReminderCrit = [
-               'plugin_rpauto_surveys_id' => $survey['id'],
-               'is_active'                      => 1,
-            ];
-            $surveyReminders    = $pluginRpautoSurveyReminderDBTM->find($surveyReminderCrit);
-
-            $potentialReminderToSendDates = [];
-
-            ?><script>
-               // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-               console.log("send reminders 2");
-            </script><?php
-
-            // Calculate the next date of next reminders
-            foreach ($surveyReminders as $surveyReminder) {
-
-               $reminders = null;
-               $reminders = $pluginRpautoReminderDBTM->find(['tickets_id' => $ticketRpauto['tickets_id'],
-                                                                   'type'       => $surveyReminder['id']]);
-
-               ?><script>
-                  // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-                  console.log("send reminders 3");
-               </script><?php
-
-               if (count($reminders)) {
-                  continue;
-               } else {
-                  ?><script>
-                     // Code JavaScript pour écrire dans la console ***************************************************************************************************************************
-                     console.log("send reminders 4");
-                  </script><?php
-
-                  $lastSurveySendDate = date('Y-m-d', strtotime($ticketRpauto['date_begin']));
-
-                  // Date when glpi rpauto was sended for the first time
-                  $reminders_to_send = $pluginRpautoReminderDBTM->find(['tickets_id' => $ticketRpauto['tickets_id']]);
-                  if (count($reminders_to_send)) {
-                     $reminder           = array_pop($reminders_to_send);
-                     $lastSurveySendDate = date('Y-m-d', strtotime($reminder['date']));
-                  }
-
-                  $date = null;
-
-                  switch ($surveyReminder[PluginRpautoSurveyReminder::COLUMN_DURATION_TYPE]) {
-
-                     case PluginRpautoSurveyReminder::DURATION_DAY:
-                        $add  = " +" . $surveyReminder[PluginRpautoSurveyReminder::COLUMN_DURATION] . " day";
-                        $date = strtotime(date("Y-m-d", strtotime($lastSurveySendDate)) . $add);
-                        $date = date('Y-m-d', $date);
-                        break;
-
-                     case PluginRpautoSurveyReminder::DURATION_MONTH:
-                        $add  = " +" . $surveyReminder[PluginRpautoSurveyReminder::COLUMN_DURATION] . " month";
-                        $date = strtotime(date("Y-m-d", strtotime($lastSurveySendDate)) . $add);
-                        $date = date('Y-m-d', $date);
-                        break;
-                     default:
-                        $date = null;
-                  }
-
-                  if (!is_null($date)) {
-                     $potentialReminderToSendDates[] = ["tickets_id" => $ticketRpauto['tickets_id'],
-                                                        "type"       => $surveyReminder['id'],
-                                                        "date"       => $date];
-                  }
-               }
-            }
-            // Order dates
-            if (!function_exists("date_sort")) {
-               function date_sort($a, $b) {
-                  return strtotime($a["date"]) - strtotime($b["date"]);
-               }
-            }
-            usort($potentialReminderToSendDates, "date_sort");
-            $dateNow = date("Y-m-d");
-
-            if (isset($potentialReminderToSendDates[0])) {
-
-               $potentialTimestamp = strtotime($potentialReminderToSendDates[0]['date']);
-               $nowTimestamp       = strtotime($dateNow);
-               //
-               if ($potentialTimestamp <= $nowTimestamp) {
-                  // Send notification
-                  PluginRpautoNotificationTargetTicket::sendReminder($ticketRpauto['tickets_id']);
-                  $self = new self();
-                  $self->add([
-                                'type'       => $potentialReminderToSendDates[0]['type'],
-                                'tickets_id' => $ticketRpauto['tickets_id'],
-                                'date'       => $dateNow
-                             ]);
-               }
-            }
-         }
-      }*/
+      $mmail->ClearAddresses();
    }
 }

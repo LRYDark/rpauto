@@ -1,4 +1,4 @@
-Le plugin permet l'envoie automatique des Rapports PDF par mail via une tâche automatique.
+Le plugin permet l'envoi automatique des rapports PDF par e-mail via une tâche automatique.
 
  /!\ Nécessite l'installation du PLUGIN RP /!\
 

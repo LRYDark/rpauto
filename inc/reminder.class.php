@@ -115,7 +115,44 @@ class PluginRpautoReminder extends CommonDBTM {
                return preg_replace("# {2,}#"," \n",preg_replace("#(\r\n|\n\r|\n|\r)#"," ",$values));  // Suppression des saut de ligne superflu
          }
 
-      Session::addMessageAfterRedirect(__('test GO','rpauto'), false, ERROR);
+         function exportZIP($SeePath, $pdfFiles){
+
+            $doc        = new Document();
+            $zip        = new ZipArchive();
+      
+            // Créez un nouveau fichier zip
+            $FileName = '/RapportPDF_Export-'.date('Ymd-His').'.zip';
+            $zipFileName = $SeePath . $FileName;
+            if ($zip->open($zipFileName, ZipArchive::CREATE)!==TRUE) {
+               exit("Impossible d'ouvrir le fichier <$zipFileName>\n");
+            }
+      
+            // Ajoutez les fichiers PDF au fichier zip
+            foreach($pdfFiles as $pdfFile) {
+               $zip->addFile($pdfFile, basename($pdfFile));
+            }
+      
+            // Fermez le fichier zip
+            $zip->close();
+      
+            $input = ['name'        => addslashes('Rapport PDF : Export massif du - ' . date("Y-m-d à H:i:s")),
+                      'filename'    => addslashes($FileName),
+                      'filepath'    => addslashes('_plugins/rp/rapportsMass' . $FileName),
+                      'mime'        => 'application/zip',
+                      'users_id'    => Session::getLoginUserID(),
+                      //'entities_id' => $ticket_entities->entities_id,
+                      //'tickets_id'  => $Ticket_id,
+                      'is_recursive'=> 1];
+      
+            if($NewDoc = $doc->add($input)){
+               $zip = $zipFileName;
+               Session::addMessageAfterRedirect(__("<br>Documents enregistrés avec succès : $zipFileName'>Télécharger les rapports en ZIP</a>",'rpauto'), false, INFO);
+            }else{
+               $zip = 'no';
+               Session::addMessageAfterRedirect(__("Erreur lors de la création des rapports",'rpauto'), false, ERROR);
+            }
+            return $zip;
+         }
       
       // definition de la date et heure actuelle
       date_default_timezone_set('Europe/Paris');
@@ -474,14 +511,23 @@ class PluginRpautoReminder extends CommonDBTM {
                   $Path               = 'C:\wamp64\www\glpi/files/_plugins/rp/rapports_auto/'.$FileName;
                   $pdf->Output($Path, 'F'); //enregistrement du pdf
 
+                  // Ajoutez le chemin du fichier PDF au tableau
+                  $pdfFiles[] = $Path;
+
                }//While 2 -------------------------------------------------------
          } //While 1 -------------------------------------------------------
       
+         $SeePath = "C:\wamp64\www\glpi/files/_plugins/rp/rapportsMass/";
+         $zipFileName = exportZIP($SeePath, $pdfFiles);
+
+         if($zipFileName != 'no'){
+            //self::sendMail($zipFileName, $EMAIL);
+         }
+            
       Session::addMessageAfterRedirect(__('Test END','rpauto'), false, ERROR);
-      //self::sendMail();
    }
 
-   static function sendMail() {
+   static function sendMail($doc, $email) {
 
 
       // génération du mail 

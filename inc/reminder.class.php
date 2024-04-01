@@ -158,7 +158,7 @@ class PluginRpautoReminder extends CommonDBTM {
       date_default_timezone_set('Europe/Paris');
          $CurrentDate = date("Y-m-d H:i:s");
 
-         $query_surveyid = $DB->query("SELECT id FROM glpi_plugin_rpauto_surveys");
+         $query_surveyid = $DB->query("SELECT id FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
          //While 1 -------------------------------------------------------
          while ($data = $DB->fetchArray($query_surveyid)) {
             $surveyid = $data['id'];
@@ -176,8 +176,19 @@ class PluginRpautoReminder extends CommonDBTM {
             }
 
             //requette pour recupéré les tickets cloturées ou solutionnées sur la periode donnée
-                     // attention modifier si recursif ou pas////////////////////////////////////////////////////////////////////////////
-            $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE entities_id = 0 AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
+               // attention modifier si recursif ou pas////////////////////////////////////////////////////////////////////////////
+               if($query_surveyid_data->is_recursive == 0){ // not recursive
+                  $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE (entities_id = $query_surveyid_data->entities_id) AND ((solvedate BETWEEN '$OldDate' AND '$CurrentDate') OR (closedate BETWEEN '$OldDate' AND '$CurrentDate'));");
+               }else{ // recursive
+
+                  $OtherEntities = "";
+                  $OtherEntity = $DB->query("SELECT * FROM glpi_entities WHERE entities_id = $query_surveyid_data->entities_id;");
+                  while ($OtherEntityData = $DB->fetchArray($OtherEntity)) {
+                     $OtherEntityID = $OtherEntityData['id'];
+                     $OtherEntities .= " OR entities_id = ".$OtherEntityID;
+                  }
+                  $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE entities_id = $query_surveyid_data->entities_id $OtherEntities AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
+               }
                //While 2 -------------------------------------------------------
                while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
                   $ticketid = $data2['id']; // ID DU TICKET

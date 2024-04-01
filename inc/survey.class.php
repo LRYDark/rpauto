@@ -189,6 +189,11 @@ class PluginRpautoSurvey extends CommonDBTM {
       ]); 
       echo "</td><td colspan='2'></td></tr>";
 
+
+      $ID_notificationtemplates = $DB->query("SELECT id FROM glpi_notificationtemplates WHERE NAME = 'Rapport automatique PDF'")->fetch_object();
+      if(empty($this->fields["gabarit"])){
+         $this->fields["gabarit"] = $ID_notificationtemplates->id;
+      }
       echo "<tr class='tab_bg_1'>";
       echo "<td>" . __('Model de notification') . "</td>";
       echo "<td>";

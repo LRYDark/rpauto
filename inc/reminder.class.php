@@ -536,11 +536,8 @@ class PluginRpautoReminder extends CommonDBTM {
             array('Balise' => '##date.current##'    , 'Value' => $CurrentDate),
          );
       // génération et gestion des balises
-      Session::addMessageAfterRedirect(__($OldDate,'rpauto'), false, INFO);
-      Session::addMessageAfterRedirect(__($CurrentDate,'rpauto'), false, INFO);
 
-      function balise($corps){
-         global $Balises;
+      function balise($corps, $Balises){
          foreach($Balises as $balise) {
              $corps = str_replace($balise['Balise'], $balise['Value'], $corps);
          }
@@ -575,9 +572,9 @@ class PluginRpautoReminder extends CommonDBTM {
       $mmail->isHTML(true);
 
     // Objet et sujet du mail 
-    $mmail->Subject = balise($NotifMailTemplate->subject);
-        $mmail->Body = GLPIMailer::normalizeBreaks(balise($BodyHtml)).$footer;
-        $mmail->AltBody = GLPIMailer::normalizeBreaks(balise($BodyText)).$footer;
+    $mmail->Subject = balise($NotifMailTemplate->subject, $Balises);
+        $mmail->Body = GLPIMailer::normalizeBreaks(balise($BodyHtml, $Balises)).$footer;
+        $mmail->AltBody = GLPIMailer::normalizeBreaks(balise($BodyText, $Balises)).$footer;
 
          // envoie du mail
          if(!$mmail->send()) {

@@ -34,11 +34,9 @@ function plugin_rpauto_install() {
    global $DB;
 
    include_once(Plugin::getPhpDir('rpauto')."/inc/profile.class.php");
-   //include_once(Plugin::getPhpDir('rpauto')."/inc/notificationtargetticket.class.php");
 
-   if (!$DB->tableExists("glpi_plugin_rpauto_surveys")) {
+   if (!$DB->tableExists("glpi_plugin_rpauto_surveys")) { //version 1.0.0
       $DB->runFile(Plugin::getPhpDir('rpauto')."/install/sql/empty-1.0.0.sql");
-
    } /*else {
       //version beta 0.1.0
       if (!$DB->fieldExists("glpi_plugin_rpauto_surveys", "reminders_days")) {
@@ -64,18 +62,7 @@ function plugin_rpauto_uninstall() {
 
    $DB->query("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser, glpi_plugin_rpauto_send;");
 
-   /*
-   $tables = [
-      "glpi_plugin_rpauto_surveys",
-      "glpi_plugin_rpauto_surveysuser"
-   ];
-
-   foreach ($tables as $table) {
-      $DB->query("DROP TABLE IF EXISTS `$table`;");
-   }*/
-
    $tables_glpi = ["glpi_logs"];
-
    foreach ($tables_glpi as $table_glpi) {
       $DB->query("DELETE FROM `$table_glpi`
                WHERE `itemtype` = 'PluginRpautoSurvey';");

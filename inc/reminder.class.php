@@ -193,7 +193,6 @@ class PluginRpautoReminder extends CommonDBTM {
                //While 2 -------------------------------------------------------
                while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
                   $ticketid = $data2['id']; // ID DU TICKET
-
                   // Instanciation de la classe dérivée --------------------------------------------------------------------
                      $pdf = new FPDF('P','mm','A4');
                      $pdf->AliasNbPages();
@@ -529,8 +528,7 @@ class PluginRpautoReminder extends CommonDBTM {
                $zipFileName = exportZIP($SeePath, $pdfFiles, $i++);
       
                if($zipFileName != 'no'){
-                  self::sendMail($zipFileName, $sendmail, $surveyid, $OldDate, $CurrentDate);
-                  Session::addMessageAfterRedirect(__($query_sel_mail->alternative_email,'rpauto'), false, ERROR);
+                  self::sendMail($zipFileName, $query_sel_mail->alternative_email, $surveyid, $OldDate, $CurrentDate);
                }
             } //While 1 -------------------------------------------------------            
    }
@@ -590,8 +588,20 @@ class PluginRpautoReminder extends CommonDBTM {
                Session::addMessageAfterRedirect(__("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo,'rpauto'), false, ERROR);
          }else{
                Session::addMessageAfterRedirect(__("<br>Mail envoyé à " . $email,'rpauto'), false, INFO);
+               date_default_timezone_set('Europe/Paris');
+               $CurrentDate = date("Y-m-d H:i:s");
+
+               $query_rpauto_send = $DB->query("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
+               if(empty($query_rpauto_send->id)){
+                  $query= "INSERT INTO `glpi_plugin_rpauto_send` (`survey_id`, `send_from`, `send_to`, `date_creation`) 
+                           VALUES ($surveyid ,'$OldDate' ,'$CurrentDate' ,'$CurrentDate' );";
+                  $DB->query($query);
+               }else{
+                  $query= "UPDATE glpi_plugin_rpauto_send SET send_from = '$query_rpauto_send->send_to', send_to = '$CurrentDate' WHERE survey_id = $surveyid";
+                  $DB->query($query);
+               }
          }
-         
+
       $mmail->ClearAddresses();
    }
 }

@@ -157,10 +157,16 @@ class PluginRpautoSurvey extends CommonDBTM {
       $this->showFormHeader($options);
 
       echo "<tr class='tab_bg_1'>";
-      echo "<td>" . __('Name') . "</td>";
+      /*echo "<td>" . __('Name') . "</td>";
       echo "<td>";
-      echo Html::input('name', ['value' => $this->fields['name'], 'size' => 40]);
-      echo "</td>";
+      echo Html::input('name', ['value' => $this->fields['name'], 'size' => 40, ]);
+      echo "</td>";*/
+
+      echo "<td>" . __('Name') . "<span class='required'>*</span></td>";
+      echo "<td>";
+      echo '<input type="text" name="name" required="" size="40" placeholder="Nom" value="'.$this->fields['name'].'">';
+      echo "</td>";  
+
       echo "<td>" . __('Comments') . "</td>";
       echo "<td>";
       echo Html::textarea([
@@ -253,11 +259,18 @@ class PluginRpautoSurvey extends CommonDBTM {
       }
       echo "<td colspan='2'></td></tr>";
 
-      echo "<td>" . __('Email') . "</td>";
+      /*echo "<td>" . __('Email') . "</td>";
       echo "<td>";
       $mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
-      if(empty($mail->alternative_email)){$mail = ' ';}else{$mail = $mail->alternative_email;}
-      echo Html::input('mail', ['value' => $mail, 'size' => 40]);
+      if(empty($mail->alternative_email)){$mail = '';}else{$mail = $mail->alternative_email;}
+      echo Html::input('mail', ['value' => $mail, 'size' => 40,'required']);
+      echo "</td>"; */ 
+
+      echo "<td>" . __('Email') . "<span class='required'>*</span></td>";
+      echo "<td>";
+      $mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
+      if(empty($mail->alternative_email)){$mail = '';}else{$mail = $mail->alternative_email;}
+      echo '<input type="mail" name="mail" required="" size="40" placeholder="email" value="'.$mail.'">';
       echo "</td>";  
 
       $this->showFormButtons($options);

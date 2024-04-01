@@ -9,11 +9,11 @@ CREATE TABLE `glpi_plugin_rpauto_surveys` (
   `date_creation` timestamp NULL DEFAULT NULL,
   `date_mod` timestamp NULL DEFAULT NULL,
   `tasks_private` tinyint NOT NULL default '0',
-  `tasks_img` tinyint NOT NULL default '0',
+  `tasks_img` tinyint NOT NULL default '1',
   `suivis_private` tinyint NOT NULL default '0',
-  `suivis_img` tinyint NOT NULL default '0',
-  `ticket_desc` tinyint NOT NULL default '0',
-  `route_time` tinyint NOT NULL default '0',
+  `suivis_img` tinyint NOT NULL default '1',
+  `ticket_desc` tinyint NOT NULL default '1',
+  `route_time` tinyint NOT NULL default '1',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 

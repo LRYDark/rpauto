@@ -35,6 +35,10 @@ function plugin_rpauto_install() {
 
    include_once(Plugin::getPhpDir('rpauto')."/inc/profile.class.php");
 
+   $rep_files_rp = GLPI_PLUGIN_DOC_DIR . "/rp/rapports_auto";
+   if (!is_dir($rep_files_rp))
+      mkdir($rep_files_rp);
+
    if (!$DB->tableExists("glpi_plugin_rpauto_surveys")) { //version 1.0.0
       $DB->runFile(Plugin::getPhpDir('rpauto')."/install/sql/empty-1.0.0.sql");
    } /*else {

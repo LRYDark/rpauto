@@ -516,7 +516,7 @@ class PluginRpautoReminder extends CommonDBTM {
 
                  
                   $FileName           = date('Ymd-His')."_RA_Ticket_".$ticketid.".pdf";
-                  $Path               = 'C:\wamp64\www\glpi/files/_plugins/rp/rapports_auto/'.$FileName;
+                  $Path               = GLPI_PLUGIN_DOC_DIR.'/rp/rapports_auto/'.$FileName;
                   $pdf->Output($Path, 'F'); //enregistrement du pdf
 
                   // Ajoutez le chemin du fichier PDF au tableau
@@ -524,7 +524,7 @@ class PluginRpautoReminder extends CommonDBTM {
 
                }//While 2 -------------------------------------------------------
          
-               $SeePath = "C:\wamp64\www\glpi/files/_plugins/rp/rapportsMass/";
+               $SeePath = GLPI_PLUGIN_DOC_DIR."/rp/rapportsMass/";
                $zipFileName = exportZIP($SeePath, $pdfFiles, $i++);
       
                if($zipFileName != 'no'){

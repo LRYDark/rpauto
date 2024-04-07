@@ -115,7 +115,7 @@ class PluginRpautoReminder extends CommonDBTM {
                return preg_replace("# {2,}#"," \n",preg_replace("#(\r\n|\n\r|\n|\r)#"," ",$values));  // Suppression des saut de ligne superflu
          }
 
-         function exportZIP($SeePath, $pdfFiles, $i){
+         function exportZIP($SeePath, $pdfFiles, $i, $is_recursive, $entities_id){
 
             $doc        = new Document();
             $zip        = new ZipArchive();
@@ -140,13 +140,12 @@ class PluginRpautoReminder extends CommonDBTM {
                       'filepath'    => addslashes('_plugins/rp/rapportsMass' . $FileName),
                       'mime'        => 'application/zip',
                       'users_id'    => Session::getLoginUserID(),
-                      //'entities_id' => $ticket_entities->entities_id,
-                      //'tickets_id'  => $Ticket_id,
-                      'is_recursive'=> 1];
+                      'entities_id' => $entities_id,
+                      'is_recursive'=> $is_recursive];
       
             if($NewDoc = $doc->add($input)){
                $zip = $zipFileName;
-               Session::addMessageAfterRedirect(__("<br>Documents enregistrés avec succès : $zipFileName'>Télécharger les rapports en ZIP</a>",'rpauto'), false, INFO);
+               Session::addMessageAfterRedirect(__("Documents enregistrés",'rpauto'), false, INFO);
             }else{
                $zip = 'no';
                Session::addMessageAfterRedirect(__("Erreur lors de la création des rapports",'rpauto'), false, ERROR);
@@ -190,6 +189,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
                   $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE entities_id = $query_surveyid_data->entities_id $OtherEntities AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
                }
+
                //While 2 -------------------------------------------------------
                while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
                   $ticketid = $data2['id']; // ID DU TICKET
@@ -296,6 +296,7 @@ class PluginRpautoReminder extends CommonDBTM {
 
                   // --------- DESCRIPTION
                   if($query_surveyid_data->ticket_desc == 1){
+
                      $pdf->Ln(5);
                      $pdf->Cell(190,5,utf8_decode('Description du problème'),1,0,'C',true);
                      $pdf->Ln();
@@ -340,14 +341,14 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
                   // --------- DESCRIPTION
 
-                  if($query_surveyid_data->tasks_private == 1){
+                  if($query_surveyid_data->tasks_private == 0){
                      $is_private_tasks = "AND is_private = 0";
                   }else{
                      $is_private_tasks = "";
                   }
 
                   // --------- TACHES
-                  $querytask = $DB->query("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid");
+                  $querytask = $DB->query("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
                   $sumtask = 0;
 
                   while ($datasumtask = $DB->fetchArray($querytask)) {
@@ -370,6 +371,7 @@ class PluginRpautoReminder extends CommonDBTM {
                               $X = $pdf->GetX();
 
                               if ($query_surveyid_data->tasks_img == 1){
+
                                  //récupération de l'ID de l'image s'il y en a une.
                                  $IdImg = $datatask['id'];
                                  $querytaskdoc = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'TicketTask'");
@@ -418,13 +420,14 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
                   // --------- TACHES
 
-                  if($query_surveyid_data->suivis_private == 1){
+                  if($query_surveyid_data->suivis_private == 0){
                      $is_private_suivis = "AND is_private = 0";
                   }else{
                      $is_private_suivis = "";
                   }
+
                   // --------- SUIVI
-                  $query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid");
+                  $query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
                   $sumsuivi = 0;
 
                   while ($datasumsuivi = $DB->fetchArray($query)) {
@@ -437,7 +440,6 @@ class PluginRpautoReminder extends CommonDBTM {
                      $pdf->Cell(190,5,utf8_decode('Suivi(s) : '.$sumsuivi),1,0,'L',true);
                         $pdf->Ln(2);
 
-                        Session::addMessageAfterRedirect(__('test 3','rpauto'), false, ERROR);
                      while ($datasuivi = $DB->fetchArray($querysuivi)) {
                         //verifications que la variable existe
                         if(!empty($datasuivi['id'])){
@@ -446,9 +448,9 @@ class PluginRpautoReminder extends CommonDBTM {
                               $pdf->MultiCell(0,5,ClearSpaceAuto(ClearHtmlAuto($datasuivi['content'])),1,'L');
                               $Y = $pdf->GetY();
                               $X = $pdf->GetX();
-                              Session::addMessageAfterRedirect(__('test 4','rpauto'), false, ERROR);
 
                               if ($query_surveyid_data->suivis_img == 1){
+
                                  //récupération de l'ID de l'image s'il y en a une.
                                  $IdImg = $datasuivi['id'];
                         
@@ -525,7 +527,7 @@ class PluginRpautoReminder extends CommonDBTM {
                }//While 2 -------------------------------------------------------
          
                $SeePath = GLPI_PLUGIN_DOC_DIR."/rp/rapportsMass/";
-               $zipFileName = exportZIP($SeePath, $pdfFiles, $i++);
+               $zipFileName = exportZIP($SeePath, $pdfFiles, $i++, $query_surveyid_data->is_recursive, $query_surveyid_data->entities_id);
       
                if($zipFileName != 'no'){
                   self::sendMail($zipFileName, $query_sel_mail->alternative_email, $surveyid, $OldDate, $CurrentDate);
@@ -587,7 +589,7 @@ class PluginRpautoReminder extends CommonDBTM {
          if(!$mmail->send()) {
                Session::addMessageAfterRedirect(__("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo,'rpauto'), false, ERROR);
          }else{
-               Session::addMessageAfterRedirect(__("<br>Mail envoyé à " . $email,'rpauto'), false, INFO);
+               Session::addMessageAfterRedirect(__("<br>Mail envoyé à " . $email . "<br>",'rpauto'), false, INFO);
                date_default_timezone_set('Europe/Paris');
                $CurrentDate = date("Y-m-d H:i:s");
 

@@ -31,7 +31,7 @@
  * Init the hooks of the plugins -Needed
  */
 
-define ("PLUGIN_RPAUTO_VERSION", "0.1.0");
+define ("PLUGIN_RPAUTO_VERSION", "1.1.0");
 
 // Minimal GLPI version, inclusive
 define('PLUGIN_RPAUTO_MIN_GLPI', '10.0');

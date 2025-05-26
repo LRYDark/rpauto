@@ -158,17 +158,17 @@ class PluginRpautoReminder extends CommonDBTM {
          $CurrentDate = date("Y-m-d H:i:s");
          $i = 0;
 
-         $query_surveyid = $DB->query("SELECT id FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
+         $query_surveyid = $DB->doQuery("SELECT id FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
          //While 1 -------------------------------------------------------
          while ($data = $DB->fetchArray($query_surveyid)) {
             $surveyid = $data['id'];
-            $query_surveyid_data = $DB->query("SELECT * FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
+            $query_surveyid_data = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
 
             // Récupértion du mail pour envoyé le PDF
-            $query_sel_mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
+            $query_sel_mail = $DB->doQuery("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
             
             // Récupération des dates et heures
-            $query_rpauto_send = $DB->query("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
+            $query_rpauto_send = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
             if(empty($query_rpauto_send->send_from)){
                $OldDate = date('Y-m-d H:i:s', strtotime('-1 month', strtotime($CurrentDate)));
             }else{
@@ -178,16 +178,16 @@ class PluginRpautoReminder extends CommonDBTM {
             //requette pour recupéré les tickets cloturées ou solutionnées sur la periode donnée
                // attention modifier si recursif ou pas////////////////////////////////////////////////////////////////////////////
                if($query_surveyid_data->is_recursive == 0){ // not recursive
-                  $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE (entities_id = $query_surveyid_data->entities_id) AND ((solvedate BETWEEN '$OldDate' AND '$CurrentDate') OR (closedate BETWEEN '$OldDate' AND '$CurrentDate'));");
+                  $query_ticket_close_and_answer = $DB->doQuery("SELECT * FROM glpi_tickets WHERE (entities_id = $query_surveyid_data->entities_id) AND ((solvedate BETWEEN '$OldDate' AND '$CurrentDate') OR (closedate BETWEEN '$OldDate' AND '$CurrentDate'));");
                }else{ // recursive
 
                   $OtherEntities = "";
-                  $OtherEntity = $DB->query("SELECT * FROM glpi_entities WHERE entities_id = $query_surveyid_data->entities_id;");
+                  $OtherEntity = $DB->doQuery("SELECT * FROM glpi_entities WHERE entities_id = $query_surveyid_data->entities_id;");
                   while ($OtherEntityData = $DB->fetchArray($OtherEntity)) {
                      $OtherEntityID = $OtherEntityData['id'];
                      $OtherEntities .= " OR entities_id = ".$OtherEntityID;
                   }
-                  $query_ticket_close_and_answer = $DB->query("SELECT * FROM glpi_tickets WHERE entities_id = $query_surveyid_data->entities_id $OtherEntities AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
+                  $query_ticket_close_and_answer = $DB->doQuery("SELECT * FROM glpi_tickets WHERE entities_id = $query_surveyid_data->entities_id $OtherEntities AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
                }
 
                //While 2 -------------------------------------------------------
@@ -239,8 +239,8 @@ class PluginRpautoReminder extends CommonDBTM {
 
                   // --------- INFO CLIENT
                      //* VARIABLS */
-                        $glpi_tickets_infos = $DB->query("SELECT * FROM glpi_tickets INNER JOIN glpi_entities ON glpi_tickets.entities_id = glpi_entities.id WHERE glpi_tickets.id = $ticketid")->fetch_object();
-                        $glpi_plugin_rp_dataclient = $DB->query("SELECT * FROM `glpi_plugin_rp_dataclient` WHERE id_ticket = $ticketid")->fetch_object();
+                        $glpi_tickets_infos = $DB->doQuery("SELECT * FROM glpi_tickets INNER JOIN glpi_entities ON glpi_tickets.entities_id = glpi_entities.id WHERE glpi_tickets.id = $ticketid")->fetch_object();
+                        $glpi_plugin_rp_dataclient = $DB->doQuery("SELECT * FROM `glpi_plugin_rp_dataclient` WHERE id_ticket = $ticketid")->fetch_object();
 
                         if(!empty($glpi_plugin_rp_dataclient->id_ticket)){
                            $SOCIETY = $glpi_plugin_rp_dataclient->society;
@@ -305,11 +305,11 @@ class PluginRpautoReminder extends CommonDBTM {
                      $Y = $pdf->GetY();
                      $X = $pdf->GetX();
 
-                        $query = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $ticketid AND itemtype = 'Ticket'");
+                        $query = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $ticketid AND itemtype = 'Ticket'");
                         while ($data3 = $DB->fetchArray($query)) {
                            if (isset($data3['documents_id'])){
                                  $iddoc = $data3['documents_id'];
-                                 $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                 $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
                            }
                         
                            $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
@@ -348,7 +348,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
 
                   // --------- TACHES
-                  $querytask = $DB->query("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
+                  $querytask = $DB->doQuery("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
                   $sumtask = 0;
 
                   while ($datasumtask = $DB->fetchArray($querytask)) {
@@ -356,7 +356,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
 
                   if ($sumtask > 0){
-                     $querytask = $DB->query("SELECT glpi_tickettasks.id, content, date, name, actiontime FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
+                     $querytask = $DB->doQuery("SELECT glpi_tickettasks.id, content, date, name, actiontime FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
                         $pdf->Ln(5);
                      $pdf->Cell(190,5,utf8_decode('Tâche(s) : '.$sumtask),1,0,'L',true);
                         $pdf->Ln(2);            
@@ -374,11 +374,11 @@ class PluginRpautoReminder extends CommonDBTM {
 
                                  //récupération de l'ID de l'image s'il y en a une.
                                  $IdImg = $datatask['id'];
-                                 $querytaskdoc = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'TicketTask'");
+                                 $querytaskdoc = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'TicketTask'");
                                  while ($datataskdoc = $DB->fetchArray($querytaskdoc)) {
                                     if (isset($datataskdoc['documents_id'])){
                                     $iddoc = $datataskdoc['documents_id'];
-                                    $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                    $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
                                     }
                                  
                                     $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
@@ -427,7 +427,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
 
                   // --------- SUIVI
-                  $query = $DB->query("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
+                  $query = $DB->doQuery("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
                   $sumsuivi = 0;
 
                   while ($datasumsuivi = $DB->fetchArray($query)) {
@@ -435,7 +435,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   } 
                   
                   if ($sumsuivi > 0){
-                     $querysuivi = $DB->query("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
+                     $querysuivi = $DB->doQuery("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
                         $pdf->Ln(5);
                      $pdf->Cell(190,5,utf8_decode('Suivi(s) : '.$sumsuivi),1,0,'L',true);
                         $pdf->Ln(2);
@@ -454,11 +454,11 @@ class PluginRpautoReminder extends CommonDBTM {
                                  //récupération de l'ID de l'image s'il y en a une.
                                  $IdImg = $datasuivi['id'];
                         
-                                 $querysuividoc = $DB->query("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'ITILFollowup'");
+                                 $querysuividoc = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'ITILFollowup'");
                                  while ($datasuividoc = $DB->fetchArray($querysuividoc)) {
                                     if (isset($datasuividoc['documents_id'])){
                                           $iddoc = $datasuividoc['documents_id'];
-                                          $ImgUrl = $DB->query("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                          $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
                                     }
                                  
                                     $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
@@ -506,7 +506,7 @@ class PluginRpautoReminder extends CommonDBTM {
                   // --------- TEMPS DE TRAJET
                   if (Plugin::isPluginActive('rt') && $query_surveyid_data->route_time == 1) {
                         $sumroutetime = 0;
-                        $timeroute = $DB->query("SELECT routetime FROM `glpi_plugin_rt_tickets` WHERE tickets_id = $ticketid");
+                        $timeroute = $DB->doQuery("SELECT routetime FROM `glpi_plugin_rt_tickets` WHERE tickets_id = $ticketid");
                            while ($dataroutetime = $DB->fetchArray($timeroute)) {
                                  $sumroutetime += $dataroutetime['routetime'];
                            }
@@ -556,13 +556,13 @@ class PluginRpautoReminder extends CommonDBTM {
       // génération du mail 
       $mmail = new GLPIMailer();
 
-      $gabarit = $DB->query("SELECT gabarit FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
+      $gabarit = $DB->doQuery("SELECT gabarit FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
       $notificationtemplates_id = $gabarit->gabarit;
-      $NotifMailTemplate = $DB->query("SELECT * FROM glpi_notificationtemplatetranslations WHERE notificationtemplates_id=$notificationtemplates_id")->fetch_object();
+      $NotifMailTemplate = $DB->doQuery("SELECT * FROM glpi_notificationtemplatetranslations WHERE notificationtemplates_id=$notificationtemplates_id")->fetch_object();
          $BodyHtml = html_entity_decode($NotifMailTemplate->content_html, ENT_QUOTES, 'UTF-8');
          $BodyText = html_entity_decode($NotifMailTemplate->content_text, ENT_QUOTES, 'UTF-8');
 
-      $footer = $DB->query("SELECT value FROM glpi_configs WHERE name = 'mailing_signature'")->fetch_object();
+      $footer = $DB->doQuery("SELECT value FROM glpi_configs WHERE name = 'mailing_signature'")->fetch_object();
       if(!empty($footer->value)){$footer = html_entity_decode($footer->value, ENT_QUOTES, 'UTF-8');}else{$footer='';}
 
       // For exchange
@@ -593,14 +593,14 @@ class PluginRpautoReminder extends CommonDBTM {
                date_default_timezone_set('Europe/Paris');
                $CurrentDate = date("Y-m-d H:i:s");
 
-               $query_rpauto_send = $DB->query("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
+               $query_rpauto_send = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
                if(empty($query_rpauto_send->id)){
                   $query= "INSERT INTO `glpi_plugin_rpauto_send` (`survey_id`, `send_from`, `send_to`, `date_creation`) 
                            VALUES ($surveyid ,'$OldDate' ,'$CurrentDate' ,'$CurrentDate' );";
-                  $DB->query($query);
+                  $DB->doQuery($query);
                }else{
                   $query= "UPDATE glpi_plugin_rpauto_send SET send_from = '$query_rpauto_send->send_to', send_to = '$CurrentDate' WHERE survey_id = $surveyid";
-                  $DB->query($query);
+                  $DB->doQuery($query);
                }
          }
 

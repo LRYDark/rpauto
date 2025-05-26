@@ -55,13 +55,13 @@ class PluginRpautoSurvey extends CommonDBTM {
       return $ong;
    }
 
-   function canCreateItem() {
+   /*function canCreateItem() {
 
       if (!$this->checkEntity()) {
          return false;
       }
       return true;
-   }
+   }*/
 
    /**
     * @return array
@@ -196,7 +196,7 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "</td><td colspan='2'></td></tr>";
 
 
-      $ID_notificationtemplates = $DB->query("SELECT id FROM glpi_notificationtemplates WHERE NAME = 'Rapport automatique PDF'")->fetch_object();
+      $ID_notificationtemplates = $DB->doQuery("SELECT id FROM glpi_notificationtemplates WHERE NAME = 'Rapport automatique PDF'")->fetch_object();
       if(empty($this->fields["gabarit"])){
          $this->fields["gabarit"] = $ID_notificationtemplates->id;
       }
@@ -261,14 +261,14 @@ class PluginRpautoSurvey extends CommonDBTM {
 
       /*echo "<td>" . __('Email') . "</td>";
       echo "<td>";
-      $mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
+      $mail = $DB->doQuery("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
       if(empty($mail->alternative_email)){$mail = '';}else{$mail = $mail->alternative_email;}
       echo Html::input('mail', ['value' => $mail, 'size' => 40,'required']);
       echo "</td>"; */ 
 
       echo "<td>" . __('Email') . "<span class='required'>*</span></td>";
       echo "<td>";
-      $mail = $DB->query("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
+      $mail = $DB->doQuery("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
       if(empty($mail->alternative_email)){$mail = '';}else{$mail = $mail->alternative_email;}
       echo '<input type="mail" name="mail" required="" size="40" placeholder="email" value="'.$mail.'">';
       echo "</td>";  
@@ -308,7 +308,7 @@ class PluginRpautoSurvey extends CommonDBTM {
       $id = $input['id'];
       $mail = $input['mail'];      
       $query= "UPDATE glpi_plugin_rpauto_surveysuser SET alternative_email = '$mail' WHERE survey_id = $id";
-      $DB->query($query);
+      $DB->doQuery($query);
 
       //active external survey for entity
       if ($input['is_active'] == 1) {

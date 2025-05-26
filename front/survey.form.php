@@ -37,6 +37,7 @@ if (!isset($_GET["id"])) {
 }
 
 $survey = new PluginRpautoSurvey();
+global $DB, $CFG_GLPI;
 
 if (isset($_POST["add"])) {
    $survey->check(-1, CREATE, $_POST);
@@ -44,7 +45,7 @@ if (isset($_POST["add"])) {
 
    $mail = $_POST["mail"];
    $query= "INSERT INTO `glpi_plugin_rpauto_surveysuser` (`survey_id`, `users_id`, `type`, `use_notification`, `alternative_email`) VALUES ($id, 0, 1, 0, '$mail');";
-   $survey_id = $DB->query($query);
+   $survey_id = $DB->doQuery($query);
 
    Html::back();
 

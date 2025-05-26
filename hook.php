@@ -64,24 +64,24 @@ function plugin_rpauto_uninstall() {
    include_once(Plugin::getPhpDir('rpauto')."/inc/profile.class.php");
    include_once(Plugin::getPhpDir('rpauto')."/inc/menu.class.php");
 
-   $DB->query("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser, glpi_plugin_rpauto_send;");
+   $DB->doQuery("DROP TABLE IF EXISTS glpi_plugin_rpauto_surveys, glpi_plugin_rpauto_surveysuser, glpi_plugin_rpauto_send;");
 
    $tables_glpi = ["glpi_logs"];
    foreach ($tables_glpi as $table_glpi) {
-      $DB->query("DELETE FROM `$table_glpi`
+      $DB->doQuery("DELETE FROM `$table_glpi`
                WHERE `itemtype` = 'PluginRpautoSurvey';");
    }
 
 
-   $notifications_templates = $DB->query("SELECT * FROM glpi_notificationtemplates WHERE comment = 'Created by the plugin RPAUTO';");
+   $notifications_templates = $DB->doQuery("SELECT * FROM glpi_notificationtemplates WHERE comment = 'Created by the plugin RPAUTO';");
    while ($notification_template = $DB->fetchArray($notifications_templates)) {
       $id_notificationtemplates = $notification_template['id'];
 
-      $DB->query("DELETE FROM `glpi_notificationtemplatetranslations` WHERE `notificationtemplates_id` = $id_notificationtemplates;");
+      $DB->doQuery("DELETE FROM `glpi_notificationtemplatetranslations` WHERE `notificationtemplates_id` = $id_notificationtemplates;");
    }
    $tables_glpi = ["glpi_notificationtemplates"];
    foreach ($tables_glpi as $table_glpi) {
-      $DB->query("DELETE FROM `$table_glpi` WHERE `comment` = 'Created by the plugin RPAUTO';");
+      $DB->doQuery("DELETE FROM `$table_glpi` WHERE `comment` = 'Created by the plugin RPAUTO';");
    }
 
    //Delete rights associated with the plugin

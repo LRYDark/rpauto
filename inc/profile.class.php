@@ -212,11 +212,25 @@ class PluginRpautoProfile extends Profile
             }
         }
 
-        foreach ($DB->request("SELECT *
+        /*foreach ($DB->request("SELECT *
                            FROM `glpi_profilerights` 
                            WHERE `profiles_id`='" . $_SESSION['glpiactiveprofile']['id'] . "' 
                               AND `name` LIKE '%plugin_eventsmanager%'") as $prof) {
             if (isset($_SESSION['glpiactiveprofile'])) {
+                $_SESSION['glpiactiveprofile'][$prof['name']] = $prof['rights'];
+            }
+        }*/
+        
+        if (isset($_SESSION['glpiactiveprofile'])) {
+            $iterator = $DB->request([
+                'FROM'  => 'glpi_profilerights',
+                'WHERE' => [
+                    'profiles_id' => $_SESSION['glpiactiveprofile']['id'],
+                    'name'        => ['LIKE', '%plugin_eventsmanager%']
+                ]
+            ]);
+
+            foreach ($iterator as $prof) {
                 $_SESSION['glpiactiveprofile'][$prof['name']] = $prof['rights'];
             }
         }

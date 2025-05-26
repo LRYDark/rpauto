@@ -31,12 +31,12 @@
  * Init the hooks of the plugins -Needed
  */
 
-define ("PLUGIN_RPAUTO_VERSION", "1.1.0");
+define ("PLUGIN_RPAUTO_VERSION", "1.2.0-beta1");
 
 // Minimal GLPI version, inclusive
-define('PLUGIN_RPAUTO_MIN_GLPI', '10.0');
+define('PLUGIN_RPAUTO_MIN_GLPI', '11.0.0');
 // Maximum GLPI version, exclusive
-define('PLUGIN_RPAUTO_MAX_GLPI', '11.0');
+define('PLUGIN_RPAUTO_MAX_GLPI', '11.0.1');
 
 if (!defined("PLUGIN_RPAUTO_DIR")) {
    define("PLUGIN_RPAUTO_DIR", Plugin::getPhpDir("rpauto"));

@@ -535,75 +535,215 @@ class PluginRpautoReminder extends CommonDBTM {
             } //While 1 -------------------------------------------------------            
    }
 
-   static function balise($corps, $Balises){
-      foreach($Balises as $balise) {
-          $corps = str_replace($balise['Balise'], $balise['Value'], $corps);
+   // Remplace ta méthode existante
+   static function balise($corps, $Balises) {
+      if ($corps === null) return '';
+      if (!isset($Balises) || !is_iterable($Balises)) return (string)$corps;
+
+      foreach ($Balises as $b) {
+         $tag = isset($b['Balise']) ? (string)$b['Balise'] : '';
+         if ($tag === '') continue;
+         $val = array_key_exists('Value', $b) ? (string)$b['Value'] : '';
+         $corps = str_replace($tag, $val, (string)$corps);
       }
       return $corps;
-   } 
+   }
 
+   // Petit helper interne pour normaliser les fins de ligne
+   private static function normalize_eols(string $s): string {
+      $s = str_replace("\0", '', $s);
+      return preg_replace("/\r\n|\r|\n/u", "\r\n", $s);
+   }
+
+   // Remplace ta méthode existante
    static function sendMail($doc, $email, $surveyid, $OldDate, $CurrentDate) {
       global $DB, $CFG_GLPI;
 
-      // génération et gestion des balises
-         //BALISES
-         $Balises = array(
-            array('Balise' => '##date.old##'        , 'Value' => $OldDate),
-            array('Balise' => '##date.current##'    , 'Value' => $CurrentDate),
+      // --- Validation email destinataire ---
+      $email = trim((string)$email);
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+         Session::addMessageAfterRedirect(
+               __("Adresse e-mail destinataire invalide : ", 'rpauto') . $email,
+               false,
+               ERROR
          );
-      // génération et gestion des balises
-      
-      // génération du mail 
-      $mmail = new GLPIMailer();
-
-      $gabarit = $DB->doQuery("SELECT gabarit FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
-      $notificationtemplates_id = $gabarit->gabarit;
-      $NotifMailTemplate = $DB->doQuery("SELECT * FROM glpi_notificationtemplatetranslations WHERE notificationtemplates_id=$notificationtemplates_id")->fetch_object();
-         $BodyHtml = html_entity_decode($NotifMailTemplate->content_html, ENT_QUOTES, 'UTF-8');
-         $BodyText = html_entity_decode($NotifMailTemplate->content_text, ENT_QUOTES, 'UTF-8');
-
-      $footer = $DB->doQuery("SELECT value FROM glpi_configs WHERE name = 'mailing_signature'")->fetch_object();
-      if(!empty($footer->value)){$footer = html_entity_decode($footer->value, ENT_QUOTES, 'UTF-8');}else{$footer='';}
-
-      // For exchange
-         $mmail->AddCustomHeader("X-Auto-Response-Suppress: OOF, DR, NDR, RN, NRN");
-
-      if (empty($CFG_GLPI["from_email"])){
-         // si mail expediteur non renseigné    
-         $mmail->SetFrom($CFG_GLPI["admin_email"], $CFG_GLPI["admin_email_name"], false);
-      }else{
-         //si mail expediteur renseigné  
-         $mmail->SetFrom($CFG_GLPI["from_email"], $CFG_GLPI["from_email_name"], false);
+         return false;
       }
 
-      $mmail->AddAddress($email);
-      $mmail->addAttachment($doc); // Ajouter un attachement (documents)
-      $mmail->isHTML(true);
+      // --- Balises ---
+      $Balises = [
+         ['Balise' => '##date.old##',     'Value' => (string)$OldDate],
+         ['Balise' => '##date.current##', 'Value' => (string)$CurrentDate],
+      ];
 
-    // Objet et sujet du mail 
-    $mmail->Subject = self::balise($NotifMailTemplate->subject, $Balises);
-        $mmail->Body = GLPIMailer::normalizeBreaks(self::balise($BodyHtml, $Balises)).$footer;
-        $mmail->AltBody = GLPIMailer::normalizeBreaks(self::balise($BodyText, $Balises)).$footer;
+      // --- Récupération du gabarit (id depuis la table surveys) ---
+      $surveyid = (int)$surveyid;
+      $gabaRow = $DB->request([
+         'SELECT' => ['gabarit'],
+         'FROM'   => 'glpi_plugin_rpauto_surveys',
+         'WHERE'  => ['id' => $surveyid],
+         'LIMIT'  => 1
+      ])->current();
 
-        // envoie du mail
-         if(!$mmail->send()) {
-               Session::addMessageAfterRedirect(__("Erreur lors de l'envoi du mail : " . $mmail->ErrorInfo,'rpauto'), false, ERROR);
-         }else{
-               Session::addMessageAfterRedirect(__("<br>Mail envoyé à " . $email . "<br>",'rpauto'), false, INFO);
-               date_default_timezone_set('Europe/Paris');
-               $CurrentDate = date("Y-m-d H:i:s");
+      if (!is_array($gabaRow) || empty($gabaRow['gabarit'])) {
+         Session::addMessageAfterRedirect(
+               __("Erreur : aucun gabarit rattaché, e-mail non envoyé.", 'rpauto'),
+               false,
+               ERROR
+         );
+         return false;
+      }
 
-               $query_rpauto_send = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
-               if(empty($query_rpauto_send->id)){
-                  $query= "INSERT INTO `glpi_plugin_rpauto_send` (`survey_id`, `send_from`, `send_to`, `date_creation`) 
-                           VALUES ($surveyid ,'$OldDate' ,'$CurrentDate' ,'$CurrentDate' );";
-                  $DB->doQuery($query);
-               }else{
-                  $query= "UPDATE glpi_plugin_rpauto_send SET send_from = '$query_rpauto_send->send_to', send_to = '$CurrentDate' WHERE survey_id = $surveyid";
-                  $DB->doQuery($query);
-               }
+      $notificationtemplates_id = (int)$gabaRow['gabarit'];
+
+      // --- Lecture du gabarit avec fallback de langue ---
+      $Subject = $BodyHtml = $BodyText = '';
+      $curLang = $_SESSION['glpilanguage'] ?? ($CFG_GLPI['language'] ?? 'fr_FR');
+      $langs   = array_values(array_unique([$curLang, substr($curLang, 0, 2), '']));
+
+      $order = new \QueryExpression(
+         "FIELD(language,'" . implode("','", array_map('addslashes', $langs)) . "')"
+      );
+
+      $tplRow = $DB->request([
+         'SELECT' => ['subject', 'content_text', 'content_html', 'language'],
+         'FROM'   => 'glpi_notificationtemplatetranslations',
+         'WHERE'  => [
+               'notificationtemplates_id' => $notificationtemplates_id,
+               'language'                 => $langs // IN (...)
+         ],
+         'ORDER'  => [$order],
+         'LIMIT'  => 1
+      ])->current();
+
+      if (!is_array($tplRow)) {
+         // Ultime recours : sans filtre de langue
+         $tplRow = $DB->request([
+               'SELECT' => ['subject', 'content_text', 'content_html', 'language'],
+               'FROM'   => 'glpi_notificationtemplatetranslations',
+               'WHERE'  => ['notificationtemplates_id' => $notificationtemplates_id],
+               'LIMIT'  => 1
+         ])->current();
+      }
+
+      if (!is_array($tplRow)) {
+         Session::addMessageAfterRedirect(
+               __("Erreur : aucun gabarit valide trouvé, e-mail non envoyé.", 'rpauto'),
+               false,
+               ERROR
+         );
+         return false;
+      }
+
+      $Subject  = (string)($tplRow['subject'] ?? '');
+      $BodyText = isset($tplRow['content_text'])
+                  ? html_entity_decode((string)$tplRow['content_text'], ENT_QUOTES, 'UTF-8') : '';
+      $BodyHtml = isset($tplRow['content_html'])
+                  ? html_entity_decode((string)$tplRow['content_html'], ENT_QUOTES, 'UTF-8') : '';
+
+      // --- Footer (signature) ---
+      $footerVal = '';
+      $cfgRow = $DB->request([
+         'SELECT' => ['value'],
+         'FROM'   => 'glpi_configs',
+         'WHERE'  => ['name' => 'mailing_signature'],
+         'LIMIT'  => 1
+      ])->current();
+      if (is_array($cfgRow) && !empty($cfgRow['value'])) {
+         $footerVal = html_entity_decode((string)$cfgRow['value'], ENT_QUOTES, 'UTF-8');
+      }
+
+      // --- Construction du mail (GLPIMailer / Symfony Mailer) ---
+      $mmail = new GLPIMailer();
+      $mmail->addCustomHeader("X-Auto-Response-Suppress: OOF, DR, NDR, RN, NRN");
+
+      // From sécurisé avec fallback
+      $fromEmail = !empty($CFG_GLPI['from_email'])
+         ? (string)$CFG_GLPI['from_email']
+         : (!empty($CFG_GLPI['admin_email']) ? (string)$CFG_GLPI['admin_email'] : 'no-reply@localhost');
+
+      $fromName = $CFG_GLPI['from_email_name'] ?? $CFG_GLPI['admin_email_name'] ?? null;
+      $fromName = (is_string($fromName) && $fromName !== '') ? $fromName : 'GLPI';
+
+      $emailObj = $mmail->getEmail();
+      $emailObj->from(new \Symfony\Component\Mime\Address($fromEmail, $fromName));
+      $emailObj->to($email); // pas de "name" → évite null
+
+      // Pièce jointe : uniquement si fichier local existant et "raisonnable"
+      if (is_string($doc) && $doc !== '' && file_exists($doc)) {
+         $size = filesize($doc);
+         if ($size !== false && $size > 15 * 1024 * 1024) {
+               // Préfixe d’avertissement si >15MB
+               $Subject = "⚠️ " . ($Subject ?: "Notification GLPI");
+         } else {
+               $emailObj->attachFromPath($doc);
          }
+      }
 
+      // Sujet / Corps avec balises + normalisation EOL + footer
+      if ($Subject !== '') {
+         $mmail->Subject = self::balise($Subject, $Balises);
+      }
+
+      $html = self::normalize_eols(self::balise($BodyHtml, $Balises));
+      $txt  = self::normalize_eols(self::balise($BodyText, $Balises));
+
+      if ($footerVal !== '') {
+         $html .= "<br>" . $footerVal;
+         $txt  .= "\r\n" . strip_tags($footerVal);
+      }
+
+      $mmail->Body    = $html;
+      $mmail->AltBody = $txt;
+
+      // --- Envoi ---
+      $ok = $mmail->send();
+      if (!$ok) {
+         Session::addMessageAfterRedirect(
+               __("Erreur lors de l'envoi du mail : ", 'rpauto') . $mmail->ErrorInfo,
+               false,
+               ERROR
+         );
+      } else {
+         Session::addMessageAfterRedirect(
+               __("Mail envoyé à ", 'rpauto') . $email,
+               false,
+               INFO
+         );
+
+         // --- Journalisation des envois (insert/update) ---
+         // NB : la timezone est normalement gérée par PHP/GLPI ; on force si ton contexte l’exige.
+         // date_default_timezone_set('Europe/Paris');
+         $now = date("Y-m-d H:i:s");
+
+         $sendRow = $DB->request([
+               'FROM'  => 'glpi_plugin_rpauto_send',
+               'WHERE' => ['survey_id' => $surveyid],
+               'LIMIT' => 1
+         ])->current();
+
+         if (!is_array($sendRow)) {
+               // Première trace
+               $DB->insert('glpi_plugin_rpauto_send', [
+                  'survey_id'     => $surveyid,
+                  'send_from'     => (string)$OldDate,
+                  'send_to'       => (string)$now,
+                  'date_creation' => (string)$now
+               ]);
+         } else {
+               // Mise à jour : on fait glisser send_from -> ancien send_to
+               $DB->update('glpi_plugin_rpauto_send', [
+                  'send_from' => (string)$sendRow['send_to'],
+                  'send_to'   => (string)$now
+               ], [
+                  'survey_id' => $surveyid
+               ]);
+         }
+      }
+
+      // Nettoyage
       $mmail->ClearAddresses();
+
+      return $ok ?? false;
    }
 }

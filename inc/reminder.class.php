@@ -190,6 +190,9 @@ class PluginRpautoReminder extends CommonDBTM {
                   $query_ticket_close_and_answer = $DB->doQuery("SELECT * FROM glpi_tickets WHERE entities_id = $query_surveyid_data->entities_id $OtherEntities AND (solvedate BETWEEN '$OldDate' AND '$CurrentDate' OR closedate BETWEEN '$OldDate' AND '$CurrentDate');");
                }
 
+               // Collect generated PDF paths for the current survey run
+               $pdfFiles = [];
+
                //While 2 -------------------------------------------------------
                while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
                   $ticketid = $data2['id']; // ID DU TICKET
@@ -525,12 +528,14 @@ class PluginRpautoReminder extends CommonDBTM {
                   $pdfFiles[] = $Path;
 
                }//While 2 -------------------------------------------------------
-         
-               $SeePath = GLPI_PLUGIN_DOC_DIR."/rp/rapportsMass/";
-               $zipFileName = exportZIP($SeePath, $pdfFiles, $i++, $query_surveyid_data->is_recursive, $query_surveyid_data->entities_id);
+
+               if (!empty($pdfFiles)) {
+                  $SeePath = GLPI_PLUGIN_DOC_DIR."/rp/rapportsMass/";
+                  $zipFileName = exportZIP($SeePath, $pdfFiles, $i++, $query_surveyid_data->is_recursive, $query_surveyid_data->entities_id);
       
-               if($zipFileName != 'no'){
-                  self::sendMail($zipFileName, $query_sel_mail->alternative_email, $surveyid, $OldDate, $CurrentDate);
+                  if($zipFileName != 'no'){
+                     self::sendMail($zipFileName, $query_sel_mail->alternative_email, $surveyid, $OldDate, $CurrentDate);
+                  }
                }
             } //While 1 -------------------------------------------------------            
    }

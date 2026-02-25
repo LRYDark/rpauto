@@ -39,23 +39,39 @@ if (!isset($_GET["id"])) {
 $survey = new PluginRpautoSurvey();
 global $DB, $CFG_GLPI;
 
+function pluginRpautoSurveyCheckCSRF(array $data): void {
+    if (!empty($data['plugin_rpauto_survey_csrf_token'])) {
+        Session::checkCSRF(['_glpi_csrf_token' => (string)$data['plugin_rpauto_survey_csrf_token']], true);
+        return;
+    }
+    Session::checkCSRF($data, true);
+}
+
 if (isset($_POST["add"])) {
+   pluginRpautoSurveyCheckCSRF($_POST);
    $survey->check(-1, CREATE, $_POST);
    $id = $survey->add($_POST);
 
-   $mail = $_POST["mail"];
-   $query= "INSERT INTO `glpi_plugin_rpauto_surveysuser` (`survey_id`, `users_id`, `type`, `use_notification`, `alternative_email`) VALUES ($id, 0, 1, 0, '$mail');";
-   $survey_id = $DB->doQuery($query);
+   $mail = trim((string)($_POST["mail"] ?? ''));
+   $DB->insert('glpi_plugin_rpauto_surveysuser', [
+      'survey_id'         => (int)$id,
+      'users_id'          => 0,
+      'type'              => 1,
+      'use_notification'  => 0,
+      'alternative_email' => $mail
+   ]);
 
    Html::back();
 
 } else if (isset($_POST["purge"])) {
-   $survey->check($_POST['id'], PURGE);
+   pluginRpautoSurveyCheckCSRF($_POST);
+   $survey->check((int)$_POST['id'], PURGE);
    $survey->delete($_POST);
    $survey->redirectToList();
 
 } else if (isset($_POST["update"])) {
-   $survey->check($_POST['id'], UPDATE);
+   pluginRpautoSurveyCheckCSRF($_POST);
+   $survey->check((int)$_POST['id'], UPDATE);
    $survey->update($_POST);
    Html::back();
 
@@ -65,7 +81,7 @@ if (isset($_POST["add"])) {
 
    Html::header(PluginRpautoSurvey::getTypeName(2), '', "admin", "pluginrpautomenu", "survey");
 
-   $survey->display(['id' => $_GET['id']]);
+   $survey->display(['id' => (int)($_GET['id'] ?? 0)]);
 
    Html::footer();
 }

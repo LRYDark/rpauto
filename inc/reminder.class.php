@@ -157,18 +157,54 @@ class PluginRpautoReminder extends CommonDBTM {
       date_default_timezone_set('Europe/Paris');
          $CurrentDate = date("Y-m-d H:i:s");
          $i = 0;
+         $documentPathCache = [];
+         $getDocumentPathById = static function ($documentId) use ($DB, &$documentPathCache) {
+            $documentId = (int)$documentId;
+            if ($documentId <= 0) {
+               return null;
+            }
+            if (!array_key_exists($documentId, $documentPathCache)) {
+               $row = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $documentId")->fetch_object();
+               $documentPathCache[$documentId] = (isset($row->filepath) && $row->filepath !== '') ? (string)$row->filepath : null;
+            }
+            return $documentPathCache[$documentId];
+         };
 
-         $query_surveyid = $DB->doQuery("SELECT id FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
+         $surveyMailById = [];
+         $resSurveyMail = $DB->doQuery("SELECT survey_id, alternative_email FROM glpi_plugin_rpauto_surveysuser");
+         if ($resSurveyMail) {
+            while ($mailRow = $DB->fetchArray($resSurveyMail)) {
+               $sid = (int)($mailRow['survey_id'] ?? 0);
+               if ($sid > 0 && !isset($surveyMailById[$sid])) {
+                  $surveyMailById[$sid] = (object)[
+                     'alternative_email' => (string)($mailRow['alternative_email'] ?? '')
+                  ];
+               }
+            }
+         }
+
+         $surveySendById = [];
+         $resSurveySend = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_send");
+         if ($resSurveySend) {
+            while ($sendRow = $DB->fetchArray($resSurveySend)) {
+               $sid = (int)($sendRow['survey_id'] ?? 0);
+               if ($sid > 0 && !isset($surveySendById[$sid])) {
+                  $surveySendById[$sid] = (object)$sendRow;
+               }
+            }
+         }
+
+         $query_surveyid = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_surveys WHERE is_active = 1;");
          //While 1 -------------------------------------------------------
          while ($data = $DB->fetchArray($query_surveyid)) {
-            $surveyid = $data['id'];
-            $query_surveyid_data = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_surveys WHERE id = $surveyid")->fetch_object();
+            $surveyid = (int)($data['id'] ?? 0);
+            $query_surveyid_data = (object)$data;
 
             // Récupértion du mail pour envoyé le PDF
-            $query_sel_mail = $DB->doQuery("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $surveyid")->fetch_object();
+            $query_sel_mail = $surveyMailById[$surveyid] ?? (object)['alternative_email' => ''];
             
             // Récupération des dates et heures
-            $query_rpauto_send = $DB->doQuery("SELECT * FROM glpi_plugin_rpauto_send WHERE survey_id = $surveyid")->fetch_object();
+            $query_rpauto_send = $surveySendById[$surveyid] ?? (object)['send_from' => null];
             if(empty($query_rpauto_send->send_from)){
                $OldDate = date('Y-m-d H:i:s', strtotime('-1 month', strtotime($CurrentDate)));
             }else{
@@ -192,6 +228,19 @@ class PluginRpautoReminder extends CommonDBTM {
 
                // Collect generated PDF paths for the current survey run
                $pdfFiles = [];
+               $rpPdfConfig = PluginRpConfig::getInstance();
+               $rpPdfLogoPath = null;
+               if (!empty($rpPdfConfig->fields['logo_id'])) {
+                  $rpPdfDoc = new Document();
+                  $rpPdfLogo = $rpPdfDoc->find(['id' => (int)$rpPdfConfig->fields['logo_id']]);
+                  $rpPdfLogo = reset($rpPdfLogo);
+                  if (isset($rpPdfLogo['filepath'])) {
+                     $candidateLogoPath = GLPI_DOC_DIR . '/' . $rpPdfLogo['filepath'];
+                     if (file_exists($candidateLogoPath)) {
+                        $rpPdfLogoPath = $candidateLogoPath;
+                     }
+                  }
+               }
 
                //While 2 -------------------------------------------------------
                while ($data2 = $DB->fetchArray($query_ticket_close_and_answer)) {
@@ -204,18 +253,12 @@ class PluginRpautoReminder extends CommonDBTM {
                      $pdf->SetFillColor(77, 113, 166);
 
                   // Entête du PDF --------------------------------------------------------------------
-                     $config     = PluginRpConfig::getInstance();
-                     $doc        = new Document();
-                     $img        = $doc->find(['id' => $config->fields['logo_id']]);
-                     $img        = reset($img);
+                     $config     = $rpPdfConfig;
                      $pdf->SetFont('Arial','B',15);// police d'ecriture
          
                      // logo
-                     if(isset($img['filepath'])){
-                        $img = GLPI_DOC_DIR.'/'.$img['filepath'];
-                        if(file_exists($img)){
-                           $pdf->Image($img,$config->fields['margin_left'],$config->fields['margin_top'],$config->fields['cut']);  
-                        }
+                     if($rpPdfLogoPath !== null){
+                        $pdf->Image($rpPdfLogoPath,$config->fields['margin_left'],$config->fields['margin_top'],$config->fields['cut']);  
                      }
          
                      $pdf->Cell(50,20,'',1,0,'C');
@@ -310,14 +353,15 @@ class PluginRpautoReminder extends CommonDBTM {
 
                         $query = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $ticketid AND itemtype = 'Ticket'");
                         while ($data3 = $DB->fetchArray($query)) {
+                           $imgPath = null;
                            if (isset($data3['documents_id'])){
                                  $iddoc = $data3['documents_id'];
-                                 $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                 $imgPath = $getDocumentPathById($iddoc);
                            }
                         
-                           $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+                           $img = $imgPath ? (GLPI_DOC_DIR.'/'.$imgPath) : '';
 
-                           if (file_exists($img)){
+                           if ($img !== '' && file_exists($img)){
                                  $imageSize = getimagesize($img);
                                  $width = $imageSize[0];
                                  $height = $imageSize[1];
@@ -351,11 +395,11 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
 
                   // --------- TACHES
-                  $querytask = $DB->doQuery("SELECT glpi_tickettasks.id FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
                   $sumtask = 0;
-
-                  while ($datasumtask = $DB->fetchArray($querytask)) {
-                     if(!empty($datasumtask['id'])) $sumtask++;  
+                  $querytaskCount = $DB->doQuery("SELECT COUNT(*) AS cpt FROM glpi_tickettasks INNER JOIN glpi_users ON glpi_tickettasks.users_id = glpi_users.id WHERE tickets_id = $ticketid $is_private_tasks");
+                  if ($querytaskCount) {
+                     $rowTaskCount = $querytaskCount->fetch_object();
+                     $sumtask = (int)($rowTaskCount->cpt ?? 0);
                   }
 
                   if ($sumtask > 0){
@@ -379,14 +423,15 @@ class PluginRpautoReminder extends CommonDBTM {
                                  $IdImg = $datatask['id'];
                                  $querytaskdoc = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'TicketTask'");
                                  while ($datataskdoc = $DB->fetchArray($querytaskdoc)) {
+                                    $imgPath = null;
                                     if (isset($datataskdoc['documents_id'])){
                                     $iddoc = $datataskdoc['documents_id'];
-                                    $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                    $imgPath = $getDocumentPathById($iddoc);
                                     }
                                  
-                                    $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+                                    $img = $imgPath ? (GLPI_DOC_DIR.'/'.$imgPath) : '';
                      
-                                    if (file_exists($img)){
+                                    if ($img !== '' && file_exists($img)){
                                           $imageSize = getimagesize($img);
                                           $width = $imageSize[0];
                                           $height = $imageSize[1];
@@ -430,12 +475,12 @@ class PluginRpautoReminder extends CommonDBTM {
                   }
 
                   // --------- SUIVI
-                  $query = $DB->doQuery("SELECT glpi_itilfollowups.id FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
                   $sumsuivi = 0;
-
-                  while ($datasumsuivi = $DB->fetchArray($query)) {
-                     if(!empty($datasumsuivi['id'])) $sumsuivi++;  
-                  } 
+                  $querySuiviCount = $DB->doQuery("SELECT COUNT(*) AS cpt FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
+                  if ($querySuiviCount) {
+                     $rowSuiviCount = $querySuiviCount->fetch_object();
+                     $sumsuivi = (int)($rowSuiviCount->cpt ?? 0);
+                  }
                   
                   if ($sumsuivi > 0){
                      $querysuivi = $DB->doQuery("SELECT glpi_itilfollowups.id, content, date, name FROM glpi_itilfollowups INNER JOIN glpi_users ON glpi_itilfollowups.users_id = glpi_users.id WHERE items_id = $ticketid $is_private_suivis");
@@ -459,14 +504,15 @@ class PluginRpautoReminder extends CommonDBTM {
                         
                                  $querysuividoc = $DB->doQuery("SELECT documents_id FROM glpi_documents_items WHERE items_id = $IdImg AND itemtype = 'ITILFollowup'");
                                  while ($datasuividoc = $DB->fetchArray($querysuividoc)) {
+                                    $imgPath = null;
                                     if (isset($datasuividoc['documents_id'])){
                                           $iddoc = $datasuividoc['documents_id'];
-                                          $ImgUrl = $DB->doQuery("SELECT filepath FROM glpi_documents WHERE id = $iddoc")->fetch_object();
+                                          $imgPath = $getDocumentPathById($iddoc);
                                     }
                                  
-                                    $img = GLPI_DOC_DIR.'/'.$ImgUrl->filepath;
+                                    $img = $imgPath ? (GLPI_DOC_DIR.'/'.$imgPath) : '';
                      
-                                    if (file_exists($img)){
+                                    if ($img !== '' && file_exists($img)){
                                           $imageSize = getimagesize($img);
                                           $width = $imageSize[0];
                                           $height = $imageSize[1];

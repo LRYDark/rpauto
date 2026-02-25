@@ -270,11 +270,12 @@ class PluginRpautoSurvey extends CommonDBTM {
       echo "<td>";
       $mail = $DB->doQuery("SELECT alternative_email FROM glpi_plugin_rpauto_surveysuser WHERE survey_id = $ID")->fetch_object();
       if(empty($mail->alternative_email)){$mail = '';}else{$mail = $mail->alternative_email;}
-      echo '<input type="mail" name="mail" required="" size="40" placeholder="email" value="'.$mail.'">';
+      echo '<input type="mail" name="mail" required="" size="40" placeholder="email" value="'.htmlspecialchars((string)$mail, ENT_QUOTES, 'UTF-8').'">';
       echo "</td>";  
 
+      echo Html::hidden('plugin_rpauto_survey_csrf_token', ['value' => Session::getNewCSRFToken(true)]);
+
       $this->showFormButtons($options);
-      Html::closeForm();
 
       return true;
    }
@@ -305,10 +306,15 @@ class PluginRpautoSurvey extends CommonDBTM {
    function prepareInputForUpdate($input){
       global $DB;
 
-      $id = $input['id'];
-      $mail = $input['mail'];      
-      $query= "UPDATE glpi_plugin_rpauto_surveysuser SET alternative_email = '$mail' WHERE survey_id = $id";
-      $DB->doQuery($query);
+      $id = (int)($input['id'] ?? 0);
+      $mail = (string)($input['mail'] ?? '');
+      if ($id > 0) {
+         $DB->update('glpi_plugin_rpauto_surveysuser', [
+            'alternative_email' => $mail
+         ], [
+            'survey_id' => $id
+         ]);
+      }
 
       //active external survey for entity
       if ($input['is_active'] == 1) {
